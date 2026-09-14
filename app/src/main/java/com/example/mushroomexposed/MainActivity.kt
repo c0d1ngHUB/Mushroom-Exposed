@@ -24,11 +24,22 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
+    /** One line of assets/labels.txt: "Deutscher Name|essbar|giftig|unbekannt|Sci_Name". */
+    private data class Species(
+        val name: String,
+        val verdict: String,
+        val scientific: String,
+    ) {
+        val isPoisonous get() = verdict == "giftig"
+        val isEdible get() = verdict == "essbar"
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var previewView: PreviewView
     private lateinit var resultText: android.widget.TextView
+    private lateinit var warningText: android.widget.TextView
     private var interpreter: Interpreter? = null
-    private var labels: List<String> = emptyList()
+    private var labels: List<Species> = emptyList()
     private var inputW = 224
     private var inputH = 224
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
@@ -42,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
         previewView = binding.previewView
         resultText = binding.resultText
+        warningText = binding.warningText
 
         if (allPermissionsGranted()) {
             startCamera()
@@ -56,16 +68,34 @@ class MainActivity : AppCompatActivity() {
             val inShape = interpreter!!.getInputTensor(0).shape() // [1, H, W, 3] (NHWC)
             inputH = inShape[1]
             inputW = inShape[2]
-            resultText.text = "Model ready — ${labels.size} Arten\n(${inputW}×${inputH})"
+            resultText.text = "Bereit — ${labels.size} Arten\n(${inputW}×${inputH})"
         } catch (e: Exception) {
             resultText.text = "Failed to load model: ${e.message}"
             e.printStackTrace()
         }
     }
 
-    private fun loadLabels(): List<String> {
+    private fun loadLabels(): List<Species> {
         return try {
-            assets.open("labels.txt").bufferedReader().readLines().filter { it.isNotBlank() }
+            assets.open("labels.txt").bufferedReader().readLines()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && !it.startsWith("#") }
+                .map { line ->
+                    val parts = line.split("|")
+                    if (parts.size >= 3) {
+                        Species(parts[0].trim(), parts[1].trim().lowercase(), parts[2].trim())
+                    } else {
+                        // Legacy "Genus_species_edible" format
+                        val legacy = parts[0]
+                        val v = when {
+                            legacy.endsWith("_edible") -> "essbar"
+                            legacy.endsWith("_poisonous") -> "giftig"
+                            else -> "unbekannt"
+                        }
+                        val sci = legacy.removeSuffix("_edible").removeSuffix("_poisonous")
+                        Species(sci.replace('_', ' '), v, sci)
+                    }
+                }
         } catch (e: Exception) {
             emptyList()
         }
@@ -202,26 +232,45 @@ class MainActivity : AppCompatActivity() {
                 try {
                     interpreter.run(inputBuffer, outputArray)
                     val probs = softmax(outputArray[0])
-                    val maxIndex = probs.indices.maxByOrNull { probs[it] } ?: 0
-                    val confidence = probs[maxIndex]
-                    val species = labels.getOrNull(maxIndex) ?: "Klasse $maxIndex"
-                    val verdict = when {
-                        species.endsWith("_edible") -> "essbar ✓"
-                        species.endsWith("_poisonous") -> "giftig ⚠"
-                        else -> "unbekannt"
+                    val ranked = probs.indices.sortedByDescending { probs[it] }
+                    val top = ranked.take(3)
+
+                    val lines = top.mapIndexed { rank, idx ->
+                        val sp = labels.getOrNull(idx)
+                        val name = sp?.name ?: "Klasse $idx"
+                        val conf = (probs[idx] * 100).toInt()
+                        val mark = when {
+                            sp?.isPoisonous == true -> " ☠"
+                            sp?.isEdible == true -> " ✓"
+                            else -> ""
+                        }
+                        "${rank + 1}. $name$mark — $conf %"
                     }
-                    val display = species.substringBefore('_').replace('_', ' ')
-                    val second = probs.withIndex()
-                        .filter { it.index != maxIndex }
-                        .maxByOrNull { it.value }
-                    val secondText = if (second != null) {
-                        val s2 = labels.getOrNull(second.index) ?: "Klasse ${second.index}"
-                        "${s2.substringBefore('_').replace('_', ' ')} ${(second.value * 100).toInt()} %"
-                    } else ""
+                    val best = labels.getOrNull(top.first())
+                    val headline = when {
+                        best == null -> "Unbekannt"
+                        best.isPoisonous -> "GIFTIG !!"
+                        best.isEdible -> "essbar"
+                        else -> "nicht bewertet"
+                    }
+                    val warn = when {
+                        best == null -> ""
+                        best.isPoisonous ->
+                            "Nicht verzehren. Im Zweifel Pilzberatung fragen."
+                        best.isEdible ->
+                            "Nur bei sicherer Bestimmung essen — nie auf App verlassen."
+                        else -> "Verzehr-Einschätzung unbekannt — Pilzberatung fragen."
+                    }
+                    val conf = (probs[top.first()] * 100).toInt()
+
                     runOnUiThread {
-                        resultText.text =
-                            "$display — $verdict\n${(confidence * 100).toInt()} % · " +
-                                    "2. Treffer: $secondText"
+                        resultText.text = "$headline ($conf %)\n" + lines.joinToString("\n")
+                        resultText.setTextColor(
+                            if (best?.isPoisonous == true) 0xFFD50000.toInt()
+                            else if (best?.isEdible == true) 0xFF00A000.toInt()
+                            else 0xFFFF8F00.toInt()
+                        )
+                        warningText.text = warn
                     }
                 } catch (e: Exception) {
                     runOnUiThread { resultText.text = "Inference error: ${e.message}" }
