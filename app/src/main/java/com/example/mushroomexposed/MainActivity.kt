@@ -9,13 +9,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.mushroomexposed.databinding.ActivityMainBinding
+import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeOp.ResizeMethod
@@ -99,6 +102,7 @@ class MainActivity : AppCompatActivity() {
 
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
@@ -120,32 +124,40 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun analyzeImage(imageProxy: android.media.ImageProxy) {
-        val @androidx.annotation.UnsignedInt rotation = imageProxy.imageInfo.rotationDegrees
-        val image = imageProxy.image ?: return
+    private fun analyzeImage(imageProxy: ImageProxy) {
+        // Model failed to load (e.g. placeholder asset) — nothing to infer with.
+        if (!::interpreter.isInitialized) {
+            imageProxy.close()
+            return
+        }
 
-        val tensorImage = TensorImage(imageProxy.imageInfo.format)
+        val image = imageProxy.image ?: run {
+            imageProxy.close()
+            return
+        }
+
+        val tensorImage = TensorImage(DataType.UINT8)
         tensorImage.load(image)
 
         // Preprocess: resize to model input size (assuming 224x224)
-        val resizeOp = ResizeOp(224, 224, ResizeMethod.NEAREST_NEIGHBOR)
-        tensorImage.addOps(resizeOp)
+        val processor = ImageProcessor.Builder()
+            .add(ResizeOp(224, 224, ResizeMethod.NEAREST_NEIGHBOR))
+            .build()
+        val processed = processor.process(tensorImage)
 
         // Run inference
-        val inputArray = tensorImage.buffer
+        val inputArray = processed.buffer
         val outputArray = FloatArray(3) // Assuming 3 classes: edible, poisonous, unknown
         interpreter.run(inputArray, outputArray)
 
         // Simple interpretation: find max probability
-        val maxIndex = outputArray.indexOfMax()
+        val maxIndex = outputArray.indices.maxByOrNull { outputArray[it] } ?: 0
         val labels = arrayOf("Edible", "Poisonous", "Unknown")
         val confidence = outputArray[maxIndex]
 
         runOnUiThread {
-            resultText.text = "${labels[maxIndex]}: ${(confidence * 100).toInt()}%
-" +
-                    "Rarity: Common
-" +
+            resultText.text = "${labels[maxIndex]}: ${(confidence * 100).toInt()}%\n" +
+                    "Rarity: Common\n" +
                     "More evidence needed: No"
         }
 
