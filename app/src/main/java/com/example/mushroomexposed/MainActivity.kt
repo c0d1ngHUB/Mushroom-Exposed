@@ -102,6 +102,7 @@ class MainActivity : AppCompatActivity() {
 
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
@@ -124,6 +125,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun analyzeImage(imageProxy: ImageProxy) {
+        // Model failed to load (e.g. placeholder asset) — nothing to infer with.
+        if (!::interpreter.isInitialized) {
+            imageProxy.close()
+            return
+        }
+
         val image = imageProxy.image ?: run {
             imageProxy.close()
             return
