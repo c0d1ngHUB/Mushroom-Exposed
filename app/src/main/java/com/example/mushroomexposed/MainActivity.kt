@@ -238,13 +238,15 @@ class MainActivity : AppCompatActivity() {
                     val lines = top.mapIndexed { rank, idx ->
                         val sp = labels.getOrNull(idx)
                         val name = sp?.name ?: "Klasse $idx"
-                        val conf = (probs[idx] * 100).toInt()
+                        val p = probs[idx] * 100
+                        val conf = if (p >= 1.0) "${p.toInt()} %"
+                                   else String.format(java.util.Locale.GERMANY, "%.1f %%", p)
                         val mark = when {
                             sp?.isPoisonous == true -> " ☠"
                             sp?.isEdible == true -> " ✓"
                             else -> ""
                         }
-                        "${rank + 1}. $name$mark — $conf %"
+                        "${rank + 1}. $name$mark — $conf"
                     }
                     val best = labels.getOrNull(top.first())
                     val headline = when {
