@@ -68,6 +68,10 @@ class MainActivity : AppCompatActivity() {
             val inShape = interpreter!!.getInputTensor(0).shape() // [1, H, W, 3] (NHWC)
             inputH = inShape[1]
             inputW = inShape[2]
+            val outputShape = interpreter!!.getOutputTensor(0).shape()
+            val modelOutputClasses = outputShape.lastOrNull()
+                ?: throw IllegalStateException("Model output tensor has no class dimension.")
+            ModelContract.requireMatchingClassCount(modelOutputClasses, labels.size)
             resultText.text = "Bereit — ${labels.size} Arten\n(${inputW}×${inputH})"
         } catch (e: Exception) {
             resultText.text = "Failed to load model: ${e.message}"
@@ -249,30 +253,20 @@ class MainActivity : AppCompatActivity() {
                         "${rank + 1}. $name$mark — $conf"
                     }
                     val best = labels.getOrNull(top.first())
-                    val headline = when {
-                        best == null -> "Unbekannt"
-                        best.isPoisonous -> "GIFTIG !!"
-                        best.isEdible -> "essbar"
-                        else -> "nicht bewertet"
-                    }
-                    val warn = when {
-                        best == null -> ""
-                        best.isPoisonous ->
-                            "Nicht verzehren. Im Zweifel Pilzberatung fragen."
-                        best.isEdible ->
-                            "Nur bei sicherer Bestimmung essen — nie auf App verlassen."
-                        else -> "Verzehr-Einschätzung unbekannt — Pilzberatung fragen."
-                    }
-                    val conf = (probs[top.first()] * 100).toInt()
+                    val bestP = probs[top.first()]
+                    val decision = VerdictPolicy.decide(best?.verdict, bestP)
+                    val conf = (bestP * 100).toInt()
 
                     runOnUiThread {
-                        resultText.text = "$headline ($conf %)\n" + lines.joinToString("\n")
+                        resultText.text = "${decision.headline} ($conf %)\n" + lines.joinToString("\n")
                         resultText.setTextColor(
-                            if (best?.isPoisonous == true) 0xFFD50000.toInt()
-                            else if (best?.isEdible == true) 0xFF00A000.toInt()
-                            else 0xFFFF8F00.toInt()
+                            when (decision.tone) {
+                                VerdictTone.DANGER -> 0xFFD50000.toInt()
+                                VerdictTone.SAFE -> 0xFF00A000.toInt()
+                                VerdictTone.CAUTION -> 0xFFFF8F00.toInt()
+                            }
                         )
-                        warningText.text = warn
+                        warningText.text = decision.warning
                     }
                 } catch (e: Exception) {
                     runOnUiThread { resultText.text = "Inference error: ${e.message}" }
