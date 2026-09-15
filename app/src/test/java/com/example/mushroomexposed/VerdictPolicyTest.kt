@@ -45,8 +45,8 @@ class VerdictPolicyTest {
     fun `dangerous lookalike never yields a green edible verdict`() {
         val lookalike = Lookalike(
             kind = LookalikeKind.GEFAEHRLICH,
-            targetKey = "Amanita_phalloides",
-            targetName = "Grüner Knollenblätterpilz",
+            key = "Amanita_phalloides",
+            name = "Grüner Knollenblätterpilz",
             evidence = "Junge Fruchtkörper ähneln tödlich giftigen Knollenblätterpilzen.",
         )
 
@@ -62,8 +62,8 @@ class VerdictPolicyTest {
     fun `attention lookalike keeps the tone and appends the hint`() {
         val lookalike = Lookalike(
             kind = LookalikeKind.ACHTUNG,
-            targetKey = "Agaricus_xanthodermus",
-            targetName = "Karbol-Champignon",
+            key = "Agaricus_xanthodermus",
+            name = "Karbol-Champignon",
             evidence = "",
         )
 
@@ -71,6 +71,21 @@ class VerdictPolicyTest {
 
         assertEquals(VerdictTone.SAFE, decision.tone)
         assertTrue(decision.warning.contains("Karbol-Champignon"))
+    }
+
+    @Test
+    fun `dangerous lookalike of a poisonous find keeps the danger tone`() {
+        val lookalike = Lookalike(
+            kind = LookalikeKind.GEFAEHRLICH,
+            key = "Amanita_phalloides",
+            name = "Grüner Knollenblätterpilz",
+            evidence = "tödlich giftig",
+        )
+
+        val decision = VerdictPolicy.decide("giftig", confidence = 0.99f, lookalike = lookalike)
+
+        assertEquals("GIFTIG !!", decision.headline)
+        assertEquals(VerdictTone.DANGER, decision.tone)
     }
 
     @Test

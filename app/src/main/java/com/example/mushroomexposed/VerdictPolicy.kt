@@ -17,9 +17,9 @@ object VerdictPolicy {
 
     fun lookalikeSentence(lookalike: Lookalike): String =
         if (lookalike.evidence.isBlank()) {
-            "Achtung Verwechslung: sieht aus wie ${lookalike.targetName}."
+            "Achtung Verwechslung: sieht aus wie ${lookalike.name}."
         } else {
-            "Achtung Verwechslung mit ${lookalike.targetName}: ${lookalike.evidence}"
+            "Achtung Verwechslung mit ${lookalike.name}: ${lookalike.evidence}"
         }
 
     /**
@@ -29,7 +29,8 @@ object VerdictPolicy {
     fun decide(verdict: String?, confidence: Float, lookalike: Lookalike? = null): VerdictDecision {
         val base = baseDecision(verdict, confidence)
         if (lookalike == null) return base
-        val tone = if (lookalike.isDangerous && base.tone == VerdictTone.SAFE) VerdictTone.CAUTION else base.tone
+        val dangerous = lookalike.kind == LookalikeKind.GEFAEHRLICH
+        val tone = if (dangerous && base.tone == VerdictTone.SAFE) VerdictTone.CAUTION else base.tone
         return base.copy(tone = tone, warning = "${base.warning} ${lookalikeSentence(lookalike)}")
     }
 

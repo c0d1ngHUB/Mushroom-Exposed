@@ -6,70 +6,78 @@ enum class LookalikeKind { GEFAEHRLICH, ACHTUNG }
 
 data class Lookalike(
     val kind: LookalikeKind,
-    val targetKey: String,
-    val targetName: String,
+    val key: String,
+    val name: String,
     val evidence: String,
-) {
-    val isDangerous get() = kind == LookalikeKind.GEFAEHRLICH
-}
+)
 
 /**
- * Parses the shipped lookalike asset. Line format:
- * `key|gefaehrlich:ZielKey|achtung:ZielKey|Belegsatz`
- * Comments start with `#`; anything unparseable is skipped, never thrown.
+ * Reads `lookalikes.txt`, written by `src/extract_lookalikes.py` in the training repo.
+ *
+ * Format: one line per species, `speciesKey|kind:target[:name[:evidence]]|...`.
+ * A `|` inside a field is escaped as `\|`; `#` starts a comment line.
  */
-object LookalikeParser {
+object LookalikeData {
 
-    private val PAIR = Regex("^(gefaehrlich|achtung):(.+)$", RegexOption.IGNORE_CASE)
-
-    /** A `kind:target` token with any other prefix is data we do not understand, never evidence. */
-    private val TOKEN = Regex("^[a-zA-Z]+:\\S+$")
+    fun load(assets: AssetManager, namesByKey: Map<String, String>): Map<String, List<Lookalike>> =
+        parse(assets.open(ASSET).bufferedReader().readLines().asSequence(), namesByKey)
 
     fun parse(lines: Sequence<String>, namesByKey: Map<String, String>): Map<String, List<Lookalike>> {
         val result = LinkedHashMap<String, MutableList<Lookalike>>()
-        val seen = HashSet<String>()
         for (raw in lines) {
             val line = raw.trim()
             if (line.isEmpty() || line.startsWith("#")) continue
-            val parts = line.split("|").map { it.trim() }
-            val key = parts.firstOrNull().orEmpty()
-            if (key.isEmpty() || parts.size < 2) continue
+            val species = line.substringBefore('|').trim()
+            if (species.isEmpty() || !line.contains('|')) continue
 
-            val evidence = parts.drop(1).lastOrNull { !TOKEN.matches(it) } ?: ""
-            val pairs = parts.drop(1).mapNotNull { part ->
-                val match = PAIR.matchEntire(part) ?: return@mapNotNull null
-                val kind = if (match.groupValues[1].equals("gefaehrlich", ignoreCase = true)) {
-                    LookalikeKind.GEFAEHRLICH
-                } else {
-                    LookalikeKind.ACHTUNG
+            val found = LinkedHashMap<String, Lookalike>()
+            for (segment in fields(line.substringAfter('|'))) {
+                val parts = segment.split(":")
+                if (parts.size < 2) continue
+                val kind = kindOf(parts[0]) ?: continue
+                val key = parts[1].trim()
+                if (key.isEmpty() || key == species) continue
+                val name = parts.getOrNull(2)?.trim().orEmpty().ifEmpty {
+                    namesByKey[key] ?: key.replace('_', ' ')
                 }
-                val target = match.groupValues[2].trim()
-                if (target.isEmpty()) null else Lookalike(
-                    kind = kind,
-                    targetKey = target,
-                    targetName = namesByKey[target] ?: target.replace('_', ' '),
-                    evidence = evidence,
-                )
+                val evidence = parts.drop(3).joinToString(":").trim()
+                val previous = found[key]
+                if (previous != null && previous.kind == LookalikeKind.GEFAEHRLICH) continue
+                found[key] = Lookalike(kind = kind, key = key, name = name, evidence = evidence)
             }
-            for (pair in pairs) {
-                if (seen.add("$key|${pair.kind}|${pair.targetKey}")) {
-                    result.getOrPut(key) { mutableListOf() }.add(pair)
-                }
-            }
+            if (found.isNotEmpty()) result[species] = found.values.toMutableList()
         }
         return result
     }
-}
 
-object LookalikeData {
-    const val ASSET_NAME = "lookalikes.txt"
-
-    /** Missing or broken asset means "no lookalike warnings", never a crash. */
-    fun load(assets: AssetManager, namesByKey: Map<String, String>): Map<String, List<Lookalike>> = try {
-        assets.open(ASSET_NAME).bufferedReader().useLines { lines ->
-            LookalikeParser.parse(lines, namesByKey)
+    /** Splits a line on unescaped `|` and unescapes `\|` inside the fields. */
+    private fun fields(text: String): List<String> {
+        val out = mutableListOf<String>()
+        val current = StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            when {
+                c == '\\' && i + 1 < text.length -> {
+                    current.append(text[i + 1]); i += 2
+                }
+                c == '|' -> {
+                    out.add(current.toString()); current.setLength(0); i++
+                }
+                else -> {
+                    current.append(c); i++
+                }
+            }
         }
-    } catch (e: Exception) {
-        emptyMap()
+        out.add(current.toString())
+        return out.map { it.trim() }.filter { it.isNotEmpty() }
     }
+
+    private fun kindOf(token: String): LookalikeKind? = when (token.trim().lowercase()) {
+        "gefaehrlich" -> LookalikeKind.GEFAEHRLICH
+        "achtung" -> LookalikeKind.ACHTUNG
+        else -> null
+    }
+
+    private const val ASSET = "lookalikes.txt"
 }
