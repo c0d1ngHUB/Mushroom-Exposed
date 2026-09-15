@@ -1,23 +1,23 @@
 Rötender Saftwirrling|unbekannt|Abortiporus_biennis
-Braunschuppiger Champignon|unbekannt|Agaricus_augustus
+Braunschuppiger Champignon|essbar|Agaricus_augustus
 Weißschuppiger Wald-Champignon|unbekannt|Agaricus_benesii
 Champignon|essbar|Agaricus_bisporus
-Stadt-Champignon|unbekannt|Agaricus_bitorquis
-Wiesen-Champignon|unbekannt|Agaricus_campestris
+Stadt-Champignon|essbar|Agaricus_bitorquis
+Wiesen-Champignon|essbar|Agaricus_campestris
 Keulenfüßiger Zwerg-Champignon|unbekannt|Agaricus_dulcidulus
-Schiefknolliger Anis-Champignon|unbekannt|Agaricus_essettei
+Schiefknolliger Anis-Champignon|essbar|Agaricus_essettei
 Flockenstieliger Wiesen-Champignon|unbekannt|Agaricus_moellerianus
 Rebhuhn-Karbol-Champignon|unbekannt|Agaricus_phaeolepidotus
-Kleiner Wald-Champignon|unbekannt|Agaricus_sylvaticus
-Dünnfleischiger Anis-Champignon|unbekannt|Agaricus_sylvicola
-Karbol-Champignon|unbekannt|Agaricus_xanthodermus
+Kleiner Wald-Champignon|essbar|Agaricus_sylvaticus
+Dünnfleischiger Anis-Champignon|essbar|Agaricus_sylvicola
+Karbol-Champignon|giftig|Agaricus_xanthodermus
 Trockener Ackerling|unbekannt|Agrocybe_pediades
-Voreilender Ackerling|essbar|Agrocybe_praecox
+Voreilender Ackerling|unbekannt|Agrocybe_praecox
 Hohlstieliger Ackerling|unbekannt|Agrocybe_vervacti
 Zitronengelber Schafporling|unbekannt|Albatrellus_citrinus
-Semmel-Porling|unbekannt|Albatrellus_confluens
+Semmel-Porling|essbar|Albatrellus_confluens
 Grüner Kamm-Porling|unbekannt|Albatrellus_cristatus
-Ziegenfuß-Porling|unbekannt|Albatrellus_pes-caprae
+Ziegenfuß-Porling|essbar|Albatrellus_pes-caprae
 Rötender Schaf-Porling|unbekannt|Albatrellus_subrubescens
 Weißer Rost|unbekannt|Albugo_candida
 Gewöhnlicher Orangebecherling|unbekannt|Aleuria_aurantia
@@ -40,7 +40,7 @@ Pantherpilz|giftig|Amanita_pantherina
 Grüner Knollenblätterpilz|giftig|Amanita_phalloides
 Porphyrbrauner Wulstling|unbekannt|Amanita_porphyria
 Königs-Fliegenpilz|giftig|Amanita_regalis
-Perlpilz|giftig|Amanita_rubescens
+Perlpilz|unbekannt|Amanita_rubescens
 Täuschender Scheidenstreifling|unbekannt|Amanita_simulans
 Igel-Wulstling|unbekannt|Amanita_solitaria
 Grauhäutiger Scheidenstreifling|unbekannt|Amanita_submembranacea
@@ -58,13 +58,12 @@ Weitporige Kiefern-Krustentramete|unbekannt|Antrodia_ramentacea
 Spitzwarzige Tramete|unbekannt|Antrodiella_serpula
 Ockergelber Pleurobasidienrindenpilz|unbekannt|Aphanobasidium_pseudotsugae
 Apiognomonia hystrix|unbekannt|Apiognomonia_hystrix
-Birnen-Stäubling|essbar|Apioperdon_pyriforme
-Gelbschuppiger Hallimasch|unbekannt|Armillaria_lutea
+Birnen-Stäubling|unbekannt|Apioperdon_pyriforme
 Honiggelber Hallimasch|essbar|Armillaria_mellea
-Dunkler Hallimasch|unbekannt|Armillaria_ostoyae
+Dunkler Hallimasch|essbar|Armillaria_ostoyae
 Stielloser Adermoosling|unbekannt|Arrhenia_lobata
 Netziggerunzelter Adermoosling|unbekannt|Arrhenia_retiruga
-Becherkoralle|giftig|Artomyces_pyxidatus
+Becherkoralle|unbekannt|Artomyces_pyxidatus
 Grünlicher Schwemmsand-Kotling|unbekannt|Ascobolus_viridis
 Großsporiger Gallertbecher|unbekannt|Ascocoryne_cylichnium
 Fleischroter Gallertbecher|unbekannt|Ascocoryne_sarcoides
@@ -76,7 +75,7 @@ Beschleierter Zwitterling|unbekannt|Asterophora_parasitica
 Großsporige Schnallen-Athelia|unbekannt|Athelia_fibulata
 Marillenfarbiger Schönhelmling|unbekannt|Atheniella_leptophylla
 Goldgelber Borstenbecherling|unbekannt|Aurantiolachnea_solsequia
-Judasohr|essbar|Auricularia_auricula-judae
+Judasohr|unbekannt|Auricularia_auricula-judae
 Gezonter Ohrlappenpilz|unbekannt|Auricularia_mesenterica
 Duftender Goldporling|unbekannt|Auriporia_aurulenta
 Gelbes Holzschimmelkissen|unbekannt|Bactridium_flavum
@@ -97,8 +96,8 @@ Graugelber Rauchporling|unbekannt|Bjerkandera_fumosa
 Gold-Mistpilz|unbekannt|Bolbitius_titubans
 Hohlfußröhrling (gelbe Form)|unbekannt|Boletinus_cavipes_aureus
 Steinpilz|essbar|Boletus_edulis
-Kiefern-Steinpilz|unbekannt|Boletus_pinophilus
-Sommer-Steinpilz|essbar|Boletus_reticulatus
+Kiefern-Steinpilz|essbar|Boletus_pinophilus
+Sommer-Steinpilz|unbekannt|Boletus_reticulatus
 Zäpfchenförmiger Kernpilz|unbekannt|Bombardia_bombarda
 Weißtannen-Bergporling|unbekannt|Bondarzewia_mesenterica
 Sternsporige Traubenbasidie|unbekannt|Botryobasidium_isabellinum
@@ -112,7 +111,7 @@ Zimtbraune Laubholz-Krustentramete|unbekannt|Brunneoporus_malicola
 Verborgenwachsendes Braunhaarbecherchen|unbekannt|Brunnipila_clandestina
 Körnchenrindenpilz|unbekannt|Bulbillomyces_farinosus
 Gemeiner Schmutzbecherling|unbekannt|Bulgaria_inquinans
-Nadelwald-Anhängsel-Röhrling|unbekannt|Butyriboletus_subappendiculatus
+Nadelwald-Anhängsel-Röhrling|essbar|Butyriboletus_subappendiculatus
 Laubholz-Lederfältling|unbekannt|Byssomerulius_corium
 ursini Caeoma-Lauchroste|unbekannt|Caeoma_allii
 Caesiodiscus populicola|unbekannt|Caesiodiscus_populicola
@@ -123,7 +122,7 @@ Laubholz-Hörnling|unbekannt|Calocera_cornea
 Gegabelter Nadelholz-Hörnling|unbekannt|Calocera_furcata
 Klebriger Hörnling|unbekannt|Calocera_viscosa
 Dottergelber Schönkopf|unbekannt|Calocybe_chrysenteron
-Mai-Schönkopf|unbekannt|Calocybe_gambosa
+Mai-Schönkopf|essbar|Calocybe_gambosa
 Gerbereigeruch-Schönkopf|unbekannt|Calocybe_gangraenosa
 Kein deutscher Name|unbekannt|Calonectria_lauri
 Dottergelber Prachtbecher|unbekannt|Caloscypha_fulgens
@@ -132,9 +131,9 @@ Gelbliches Trichterbecherchen|unbekannt|Calyptella_campanula
 Gelbliches Trichterbecherchen|unbekannt|Calyptella_capula
 Röhren-Kohlenbeere|unbekannt|Camarops_tubulina
 Robinien-Mauerspore|unbekannt|Camarosporidiella_elongata
-Behangener Faserling|unbekannt|Candolleomyces_candolleanus
+Behangener Faserling|essbar|Candolleomyces_candolleanus
 Beringter Faserling|unbekannt|Candolleomyces_leucotephrus
-Amethyst-Pfifferling|essbar|Cantharellus_amethysteus
+Amethyst-Pfifferling|unbekannt|Cantharellus_amethysteus
 Pfifferling|essbar|Cantharellus_cibarius
 Samtiger Pfifferling|unbekannt|Cantharellus_friesii
 Gelbvioletter Pfifferling|unbekannt|Cantharellus_melanoxeros
@@ -153,11 +152,11 @@ Wenigbehaarter Rinderdung-Borstenbecherling|unbekannt|Cheilymenia_dennisii
 Körniger Rinderdung-Borstenbecherling|unbekannt|Cheilymenia_granulata
 Grünspanbecherling|unbekannt|Chlorociboria_aeruginascens
 Gerandetknolliger Garten-Safranschirmling|unbekannt|Chlorophyllum_brunneum
-Olivbrauner Safranschirmling|essbar|Chlorophyllum_olivieri
+Olivbrauner Safranschirmling|unbekannt|Chlorophyllum_olivieri
 Violetter Knorpelschichtpilz|unbekannt|Chondrostereum_purpureum
 Chromelosporium carneum|unbekannt|Chromelosporium_carneum
 Rosavioletter Buntnabeling|unbekannt|Chromosera_viola
-Filziger Gelbfuß|unbekannt|Chroogomphus_helveticus
+Filziger Gelbfuß|essbar|Chroogomphus_helveticus
 Alpenrosen-Goldrost|unbekannt|Chrysomyxa_rhododendri
 Fichtenzapfen-Stromabecherling|unbekannt|Ciboria_bulgarioides
 Zapfenschuppen-Stromabecherling|unbekannt|Ciboria_rufofusca
@@ -169,13 +168,13 @@ Wurmförmiges Keulchen|unbekannt|Clavaria_fragilis
 Rauchgraues Büschel-Keulchen|unbekannt|Clavaria_fumosa
 Rosenrotes Keulchen|unbekannt|Clavaria_rosea
 Zungen-Riesenkeule|unbekannt|Clavariadelphus_ligula
-Herkules-Riesenkeule|unbekannt|Clavariadelphus_pistillaris
-Abgestutzte Riesenkeule|essbar|Clavariadelphus_truncatus
+Herkules-Riesenkeule|essbar|Clavariadelphus_pistillaris
+Abgestutzte Riesenkeule|unbekannt|Clavariadelphus_truncatus
 Mutterkorn|giftig|Claviceps_purpurea
 Pastellgelber Gloeozystiden-Wachsrindenpilz|unbekannt|Clavulicium_macounii
 Violette Kleinkoralle|unbekannt|Clavulina_amethystina
 Graue Kleinkoralle|unbekannt|Clavulina_cinerea
-Kammförmige Kleinkoralle|essbar|Clavulina_coralloides
+Kammförmige Kleinkoralle|unbekannt|Clavulina_coralloides
 Runzelige Kleinkoralle|unbekannt|Clavulina_rugosa
 Geweihförmige Wiesenkoralle|unbekannt|Clavulinopsis_corniculata
 Spindelförmige Wiesenkoralle|unbekannt|Clavulinopsis_fusiformis
@@ -185,14 +184,14 @@ Nördlicher Stachelseitling|unbekannt|Climacodon_septentrionalis
 Bleiweißer Ritterling|giftig|Clitocybe_dealbata
 Kugelsporiger Mehl-Trichterling|unbekannt|Clitocybe_ditopa
 Fälblings-Trichterling|unbekannt|Clitocybe_martiorum
-Nebelgrauer Trichterling|unbekannt|Clitocybe_nebularis
-Rosasporiger Trichterling|unbekannt|Clitocybe_phyllophila
+Nebelgrauer Trichterling|giftig|Clitocybe_nebularis
+Rosasporiger Trichterling|giftig|Clitocybe_phyllophila
 Rinnigbereifter Trichterling|unbekannt|Clitocybe_rivulosa
 Hygrophaner Nabel-Trichterling|unbekannt|Clitocybe_subspadicea
 Gestreifter Faserrübling|unbekannt|Clitocybula_lacerata
-Würziger Tellerling|essbar|Clitopilus_geminus
+Würziger Tellerling|unbekannt|Clitopilus_geminus
 Muschelförmiger Räsling|unbekannt|Clitopilus_hobsonii
-Großer Mehl-Räsling|essbar|Clitopilus_prunulus
+Großer Mehl-Räsling|unbekannt|Clitopilus_prunulus
 Trichterförmiger Räsling|unbekannt|Clitopilus_scyphoides
 kein deutscher Name|unbekannt|Coccomyces_tumidus
 Glockenblumen-Blasenrost|unbekannt|Coleosporium_campanulae
@@ -208,7 +207,7 @@ Mitrasporiger Samttintling|unbekannt|Coprinellus_angulatus
 Zweisporiger Mist-Samttintling|unbekannt|Coprinellus_bisporus
 Gesäter Tintling|unbekannt|Coprinellus_disseminatus
 Schmalsporiger Flockentintling|unbekannt|Coprinellus_domesticus
-Gewöhnlicher Glimmertintling|unbekannt|Coprinellus_micaceus
+Gewöhnlicher Glimmertintling|essbar|Coprinellus_micaceus
 Überzuckerter Glimmertintling|unbekannt|Coprinellus_saccharinus
 Rausporiger Samttintling|unbekannt|Coprinellus_sylvaticus
 Grauer Falten-Tintling|unbekannt|Coprinopsis_atramentaria
@@ -217,15 +216,15 @@ Gewöhnlicher Hasenpfoten-Fasertintling|unbekannt|Coprinopsis_lagopus
 Grauweißer Faserling|unbekannt|Coprinopsis_marcescibilis
 Struppiger Mist-Noppentintling|unbekannt|Coprinopsis_stercorea
 Blasssporiger Wolltintling|unbekannt|Coprinopsis_urticicola
-Schopf-Tintling|essbar|Coprinus_comatus
+Schopf-Tintling|unbekannt|Coprinus_comatus
 Großer Ring-Tintling|unbekannt|Coprinus_sterquilinus
 Braune Borstentramete|unbekannt|Coriolopsis_gallica
 Blasse Borstentramete|unbekannt|Coriolopsis_trogii
 Rosafarbener Prachtrindenpilz|unbekannt|Corticium_roseum
 Schwarzgrüner Klumpfuß|unbekannt|Cortinarius_atrovirens
-Rotschuppiger Schleierling|giftig|Cortinarius_bolaris
+Rotschuppiger Schleierling|unbekannt|Cortinarius_bolaris
 Dunkelbrauner Gürtelfuß|unbekannt|Cortinarius_brunneus
-Zigeuner|giftig|Cortinarius_caperatus
+Zigeuner|unbekannt|Cortinarius_caperatus
 Safrankegeliger Hautkopf|unbekannt|Cortinarius_croceoconus
 Safranblättriger Hautkopf|unbekannt|Cortinarius_croceus
 Taubenblauer Schleimkopf|unbekannt|Cortinarius_cumatilis
@@ -254,12 +253,12 @@ Dunkler Birken-Septenpilz|unbekannt|Coryneum_lanciforme
 (Schillerporling-Pustelpilz)|unbekannt|Cosmospora_coccinea
 Cosmospora viridescens|unbekannt|Cosmospora_viridescens
 Striegeliger Kreiselpilz|unbekannt|Cotylidia_pannosa
-Grauer Leistling|unbekannt|Craterellus_cinereus
-Totentrompete|essbar|Craterellus_cornucopioides
-Starkriechender Pfifferling|unbekannt|Craterellus_lutescens
-Trompeten-Pfifferling|unbekannt|Craterellus_tubaeformis
+Grauer Leistling|essbar|Craterellus_cinereus
+Totentrompete|unbekannt|Craterellus_cornucopioides
+Starkriechender Pfifferling|essbar|Craterellus_lutescens
+Trompeten-Pfifferling|essbar|Craterellus_tubaeformis
 Trompeten-Pfifferling (gelbe Varietät)|unbekannt|Craterellus_tubaeformis_lutescens
-Krause Kraterelle|unbekannt|Craterellus_undulatus
+Krause Kraterelle|essbar|Craterellus_undulatus
 Kleinsporiges Stummelfüßchen|unbekannt|Crepidotus_applanatus
 Faserschuppiges Stummelfüßchen|unbekannt|Crepidotus_calolepis
 Glatthütiges Stummelfüßchen|unbekannt|Crepidotus_caspari
@@ -274,8 +273,8 @@ Cryptosphaeria eunomia|unbekannt|Cryptosphaeria_eunomia
 Berberitzen-Mauerspore|unbekannt|Cucurbitaria_berberidis
 Dünnstieliger Helm-Kreisling/Wasserkreisling|unbekannt|Cudoniella_acicularis
 Dünnsporiger Wasserkreisling|unbekannt|Cudoniella_tenuispora
-Orangefarbener Wiesen-Ellerling|unbekannt|Cuphophyllus_pratensis
-Glasigweißer Ellerling|essbar|Cuphophyllus_virgineus
+Orangefarbener Wiesen-Ellerling|essbar|Cuphophyllus_pratensis
+Glasigweißer Ellerling|unbekannt|Cuphophyllus_virgineus
 Blauer Saftporling|unbekannt|Cyanosporus_caesius
 Fastblauer Saftporling|unbekannt|Cyanosporus_subcaesius
 Gekrönter Stängelbecherling|unbekannt|Cyathicula_coronata
@@ -316,7 +315,7 @@ Kugeliger Stielstäubling|unbekannt|Diderma_globosum
 Fastdunkelgrüner Stielstäubling|unbekannt|Diderma_subviridifuscum
 Schwarzstieliger Krustenpilz|unbekannt|Didymium_nigripes
 Digitodochium amoenum|unbekannt|Digitodochium_amoenum
-Morchelbecherling|unbekannt|Disciotis_venosa
+Morchelbecherling|essbar|Disciotis_venosa
 Schwarzweiße Becher-Lorchel|unbekannt|Dissingia_leucomelaena
 Ditiola haasii|unbekannt|Ditiola_haasii
 Gelbweißer Gallertbecher|unbekannt|Ditiola_pezizaeformis
@@ -338,7 +337,7 @@ Teerflecken-Drüsling|unbekannt|Exidia_pithya
 Weißlicher Drüsling|unbekannt|Exidia_thuretiana
 Fenestella parafenestrata|unbekannt|Fenestella_parafenestrata
 Ochsenzunge|unbekannt|Fistulina_hepatica
-sensu l. Gewöhnlicher Samtfußrübling|unbekannt|Flammulina_velutipes
+sensu l. Gewöhnlicher Samtfußrübling|essbar|Flammulina_velutipes
 Zitronengelbe Krustentramete|unbekannt|Flaviporus_citrinellus
 Zunderschwamm|unbekannt|Fomes_fomentarius
 Polsterförmiger Feuerschwamm|unbekannt|Fomitiporia_punctata
@@ -353,8 +352,8 @@ Zögerliche Erdzunge|unbekannt|Geoglossum_starbaeckii
 Zedern-Sandborstling|unbekannt|Geopora_sumneriana
 Hellblättriger Goldnabeling|unbekannt|Gerronema_xanthophyllum
 Balken-Blättling|unbekannt|Gloeophyllum_trabeum
-Gemeiner Klapperschwamm|essbar|Grifola_frondosa
-Fleischroter Gallerttrichter|unbekannt|Guepinia_helvelloides
+Gemeiner Klapperschwamm|unbekannt|Grifola_frondosa
+Fleischroter Gallerttrichter|essbar|Guepinia_helvelloides
 Becherförmiger Haargallertpilz|unbekannt|Guepiniopsis_buccina
 Vogelbeer-Gitterrost|unbekannt|Gymnosporangium_cornutum
 Hapalocystis berkeleyi|unbekannt|Hapalocystis_berkeleyi
@@ -363,7 +362,7 @@ Lederige Becher-Lorchel|unbekannt|Helvella_corium
 Gelber Scheinhaarstäubling|unbekannt|Hemitrichia_clavata
 Schlangen-Scheinhaarstäubling|unbekannt|Hemitrichia_serpula
 Tannen-Stachelbart|unbekannt|Hericium_alpestre
-Dorniger Stachelbart|unbekannt|Hericium_cirrhatum
+Dorniger Stachelbart|essbar|Hericium_cirrhatum
 Eichen-Filzröhrling|unbekannt|Hortiboletus_engelii
 Halbkugeliger Borstenbecherling|unbekannt|Humaria_hemisphaerica
 Goldgelbes Hyalinknopfbecherchen|unbekannt|Hyalorbilia_inflatula
@@ -375,13 +374,13 @@ Feuerschuppiger Saftling|unbekannt|Hygrocybe_intermedia
 Falscher Pfifferling|giftig|Hygrophoropsis_aurantiaca
 Olivbraungestiefelter Schneckling|unbekannt|Hygrophorus_glutinifer
 Dickschleimiger Birken-Schneckling|unbekannt|Hygrophorus_hedrychii
-Isabellrötlicher Buchen-Schneckling|essbar|Hygrophorus_poetarum
+Isabellrötlicher Buchen-Schneckling|unbekannt|Hygrophorus_poetarum
 kein deutscher Name|unbekannt|Hymenoscyphus_eichleri
 Ausgebreiteter Stängelbecherling|unbekannt|Hymenoscyphus_repandus
 Graublättriger Schwefelkopf|unbekannt|Hypholoma_capnoides
 Hellblättriger Torfmoos-Schwefelkopf|unbekannt|Hypholoma_elongatum
 Grünblättriger Schwefelkopf|giftig|Hypholoma_fasciculare
-Ziegelroter Schwefelkopf|giftig|Hypholoma_lateritium
+Ziegelroter Schwefelkopf|unbekannt|Hypholoma_lateritium
 Steinreizker-Kernpilz|unbekannt|Hypomyces_lateritius
 Mährische Eschen-Kohlenbeere|unbekannt|Hypoxylon_cercidicola
 Großfrüchtige Kohlenbeere|unbekannt|Hypoxylon_macrocarpum
@@ -392,24 +391,24 @@ Grünfleischige Schwanztrüffel|unbekannt|Hysterangium_clathroides
 Hysterium angustatum|unbekannt|Hysterium_angustatum
 Eschen-Spaltkohlenpilz|unbekannt|Hysterographium_fraxini
 Heideflechte|unbekannt|Icmadophila_ericetorum
-Ochsenröhrling|giftig|Imperator_torosus
-Erdblättriger Risspilz|giftig|Inocybe_geophylla
-Erdblättriger Risspilz (Violettliche Varietät)|giftig|Inocybe_lilacina
+Ochsenröhrling|unbekannt|Imperator_torosus
+Erdblättriger Risspilz|unbekannt|Inocybe_geophylla
+Erdblättriger Risspilz (Violettliche Varietät)|unbekannt|Inocybe_lilacina
 Weinroter Risspilz|unbekannt|Inosperma_adaequatum
 Blaufüßiger Risspilz|unbekannt|Inosperma_calamistratum
 Blaufüßiger Alpin-Risspilz|unbekannt|Inosperma_subhirsutum
 Zusammengedrängte Kohlenbeere|unbekannt|Jackrogersella_cohaerens
 Schönfarbiger Resupinatporling|unbekannt|Junghuhnia_nitida
 Brandiger Krustenpilz|unbekannt|Kretzschmaria_deusta
-Stockschwämmchen|essbar|Kuehneromyces_mutabilis
+Stockschwämmchen|unbekannt|Kuehneromyces_mutabilis
 Lärchen-Milchling|unbekannt|Lactarius_porninsis
 Wollmilchling|essbar|Lactarius_resimus
 Rotgegürtelter Milchling|unbekannt|Lactarius_rubrocinctus
-Schwefelporling|essbar|Laetiporus_sulphureus
+Schwefelporling|unbekannt|Laetiporus_sulphureus
 kein deutscher Name|unbekannt|Lecania_naegelii
 (Gefelderte Krustenflechte)|unbekannt|Lecanora_chlarotera
 Kastanienbrauner Becherling|unbekannt|Legaliana_badia
-Anis-Zähling|unbekannt|Lentinellus_cochleatus
+Anis-Zähling|essbar|Lentinellus_cochleatus
 Mai-Stielporling|unbekannt|Lentinus_substrictus
 Gedrungener Igelschirmling|unbekannt|Lepiota_echinacea
 Zugespitzter Kugelpilz|unbekannt|Leptosphaeria_acuta
@@ -423,10 +422,10 @@ Grünverfärbender Kohlenpilz|unbekannt|Lophiostoma_viridarium
 Tannennadel-Spaltlippe|unbekannt|Lophodermium_piceae
 Starkriechender Saftporling|unbekannt|Loweomyces_wynneae
 Igel-Stäubling|unbekannt|Lycoperdon_echinatum
-Beutel-Stäubling|essbar|Lycoperdon_excipuliforme
+Beutel-Stäubling|unbekannt|Lycoperdon_excipuliforme
 Stinkender Stäubling|unbekannt|Lycoperdon_foetidum
 Flocken-Stäubling|unbekannt|Lycoperdon_mammiforme
-Wiesen-Staubbecher|essbar|Lycoperdon_pratense
+Wiesen-Staubbecher|unbekannt|Lycoperdon_pratense
 Parasol|unbekannt|Macrolepiota_procera
 Rotsporiger Riesenschirmling|unbekannt|Macrolepiota_rhodosperma
 Laubblatt-Rädchen-Schwindling oder auch „Käsepilzchen“|unbekannt|Marasmius_bulliardii
@@ -448,7 +447,7 @@ Graugrüne Buchen-Erdzunge|unbekannt|Microglossum_griseoviride
 agg. Olivbraune Erdzunge|unbekannt|Microglossum_olivaceum
 Düsteres Schilf-Weichbecherchen|unbekannt|Mollisia_retincola
 Köstliche Spitz-Morchel|unbekannt|Morchella_deliciosa
-Graue Morchel|essbar|Morchella_vulgaris
+Graue Morchel|unbekannt|Morchella_vulgaris
 Kugelsporiges Pfriempilzchen|unbekannt|Mucronella_bresadolae
 Ellipsoidsporiges Pfriempilzchen|unbekannt|Mucronella_calva
 Holzbewohnendes Flechtenkeulchen|unbekannt|Multiclavula_mucida
@@ -468,7 +467,7 @@ Nectriopsis broomeana|unbekannt|Nectriopsis_broomeana
 Nemania aureolutea|unbekannt|Nemania_aureolutea
 Zusammenfließende Kohlenbeere|unbekannt|Nemania_confluens
 Gewundener Kugelpilz|unbekannt|Nemania_serpens
-Flockenstieliger Hexenröhrling|essbar|Neoboletus_praestigiator
+Flockenstieliger Hexenröhrling|unbekannt|Neoboletus_praestigiator
 Gewöhnlicher Buchenkreisling|unbekannt|Neobulgaria_pura
 Kreuzdorn-Mauerspore|unbekannt|Neocucurbitaria_rhamni
 Wachsgelbes Haarbecherchen|unbekannt|Neodasyscypha_cerina
@@ -481,14 +480,14 @@ Violetter Gallertkreisling|unbekannt|Ombrophila_violacea
 &#8222;Ameisenpilz&#8220;|unbekannt|Ophiocordyceps_myrmecophila
 Eingerollter Öhrling|unbekannt|Otidea_alutacea_microspora
 Zitronengelber Öhrling|unbekannt|Otidea_concinna
-Hasen-Öhrling|essbar|Otidea_leporina
-Esel-Öhrling|essbar|Otidea_onotica
+Hasen-Öhrling|unbekannt|Otidea_leporina
+Esel-Öhrling|unbekannt|Otidea_onotica
 Wässriger Scheibenbecherling|unbekannt|Pachyella_aquatilis
 Gelbmilchender Scheibenbecherling|unbekannt|Pachyella_pseudosuccosa
 Violettschwarzer Dickbecherling|unbekannt|Pachyella_violaceonigra
 Behangener Düngerling|giftig|Panaeolus_papilionaceus
 Milder Zwergknäueling|unbekannt|Panellus_mitis
-Gelbzottiger Zwergknäueling|giftig|Panellus_serotinus
+Gelbzottiger Zwergknäueling|unbekannt|Panellus_serotinus
 Herber Zwergknäueling|unbekannt|Panellus_stipticus
 Violettblättriger Tannen-Zwergknäueling|unbekannt|Panellus_violaceofulvus
 Veränderlicher Knäueling|unbekannt|Panus_conchatus
@@ -505,7 +504,7 @@ Phaeocalicium populneum|unbekannt|Phaeocalicium_populneum
 Blassfleischfarbener Nagelbecherling|unbekannt|Phaeohelotium_subcarneum
 Kiefern-Braunporling|unbekannt|Phaeolus_schweinitzii
 Phaeosphaeria lycopodina|unbekannt|Phaeosphaeria_lycopodina
-Rotbrauner Zitterling|unbekannt|Phaeotremella_foliacea
+Rotbrauner Zitterling|essbar|Phaeotremella_foliacea
 Beutelförmige Gallertnuss|unbekannt|Phallogaster_saccatus
 Muschelförmiger Feuerschwamm|unbekannt|Phellinopsis_conchata
 Tannen-Feuerschwamm|unbekannt|Phellinus_hartigii
@@ -537,7 +536,7 @@ Schwarzflockiger Dachpilz|unbekannt|Pluteus_umbrosus
 Winter-Stielporling|unbekannt|Polyporus_brumalis
 Schuppiger Porling|unbekannt|Polyporus_squamosus
 Nördlicher Trichter-Stielporling|unbekannt|Polyporus_tubaeformis
-Eichhase|unbekannt|Polyporus_umbellatus
+Eichhase|essbar|Polyporus_umbellatus
 Föhren-Feuerschwamm|unbekannt|Porodaedalea_pini
 Rußbrauner Braunborsten-Schichtpilz|unbekannt|Porostereum_spadiceum
 Praetumpfia obducens|unbekannt|Praetumpfia_obducens
@@ -553,7 +552,7 @@ Großspuriger Milder Scheinnabeling|unbekannt|Pseudoomphalina_kalchbrenneri
 Pseudoophiobolus erythrosporus|unbekannt|Pseudoophiobolus_erythrosporus
 Gestielter Tannen-Schwarzborstling|unbekannt|Pseudoplectania_melaena
 Glänzender Schwarzborstling|unbekannt|Pseudoplectania_nigrella
-Spitzkegeliger Kahlkopf|unbekannt|Psilocybe_semilanceata
+Spitzkegeliger Kahlkopf|giftig|Psilocybe_semilanceata
 Psiloglonium lineare|unbekannt|Psiloglonium_lineare
 Puccinia alnetorum|unbekannt|Puccinia_alnetorum
 Puccinia bornmuelleri|unbekannt|Puccinia_bornmuelleri
@@ -571,7 +570,7 @@ Becherförmiger Liliputseitling|unbekannt|Resupinatus_kavinii
 Bereifter Würzelchentrichterling|unbekannt|Rhizocybe_pruinosa
 Borstensstieliger Buchenblatt-Schwindling|unbekannt|Rhizomarasmius_setosus
 Horngrauer Großrübling|unbekannt|Rhodocollybia_asema
-Butter-Rübling|essbar|Rhodocollybia_butyracea
+Butter-Rübling|unbekannt|Rhodocollybia_butyracea
 Rosafarbener Saftporling|unbekannt|Rhodonia_placenta
 Ahorn-Runzelschorf|unbekannt|Rhytisma_acerinum
 &#8222;Rosmarinheide-Runzelschorf&#8220;|unbekannt|Rhytisma_andromedae
@@ -609,7 +608,7 @@ Blutender Laubholz-Schichtpilz|unbekannt|Stereum_rugosum
 Blutender Nadelholz-Schichtpilz|unbekannt|Stereum_sanguinolentum
 Aufreißendes Lochbecherchen|unbekannt|Stictis_radiata
 Stomiopeltis betulae|unbekannt|Stomiopeltis_betulae
-Fichten-Zapfenrübling|unbekannt|Strobilurus_esculentus
+Fichten-Zapfenrübling|essbar|Strobilurus_esculentus
 Ungesäumter Grünspan-Träuschling|unbekannt|Stropharia_caerulea
 Beringter Zirben-Röhrling|unbekannt|Suillus_sibiricus
 Rostroter Lärchen-Röhrling|unbekannt|Suillus_tridentinus
