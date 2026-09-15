@@ -5,9 +5,13 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Size
+import android.view.MotionEvent
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -17,11 +21,22 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.mushroomexposed.databinding.ActivityMainBinding
 import org.tensorflow.lite.Interpreter
+import java.io.File
 import java.io.FileInputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 
+/**
+ * Field mode: the live preview guides the user (frame, quality hints), a single
+ * shutter press freezes the frame, analyses that one frame and leaves the result
+ * on screen until the next press.
+ */
 class MainActivity : AppCompatActivity() {
 
     /** One line of assets/labels.txt: "Deutscher Name|essbar|giftig|unbekannt|Sci_Name". */
@@ -29,22 +44,25 @@ class MainActivity : AppCompatActivity() {
         val name: String,
         val verdict: String,
         val scientific: String,
-    ) {
-        val isPoisonous get() = verdict == "giftig"
-        val isEdible get() = verdict == "essbar"
-    }
+    )
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var previewView: PreviewView
-    private lateinit var resultText: android.widget.TextView
-    private lateinit var warningText: android.widget.TextView
     private var interpreter: Interpreter? = null
     private var labels: List<Species> = emptyList()
+    private var lookalikes: Map<String, List<Lookalike>> = emptyMap()
     private var inputW = 224
     private var inputH = 224
+    private var torchOn = false
+    private var frozen: Bitmap? = null
+
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
-    private val CAMERA_REQUEST_CODE = 10
+    private val qualityExecutor = Executors.newSingleThreadExecutor()
+    private val history by lazy { HistoryStore(File(filesDir, "history")) }
+    private val clock = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.GERMANY)
+
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    private val CAMERA_REQUEST_CODE = 10
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,65 +70,233 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         previewView = binding.previewView
-        resultText = binding.resultText
-        warningText = binding.warningText
 
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            requestPermissions()
-        }
+        loadModel()
+        wireControls()
 
-        // Load TensorFlow Lite model + labels from assets
+        if (allPermissionsGranted()) startCamera() else requestPermissions()
+    }
+
+    private fun loadModel() {
         try {
             interpreter = Interpreter(loadModelFile())
             labels = loadLabels()
-            val inShape = interpreter!!.getInputTensor(0).shape() // [1, H, W, 3] (NHWC)
-            inputH = inShape[1]
-            inputW = inShape[2]
-            val outputShape = interpreter!!.getOutputTensor(0).shape()
-            val modelOutputClasses = outputShape.lastOrNull()
+            lookalikes = LookalikeData.load(assets, labels.associate { it.scientific to it.name })
+            val shape = interpreter!!.getInputTensor(0).shape()
+            inputH = shape[1]
+            inputW = shape[2]
+            val modelClasses = interpreter!!.getOutputTensor(0).shape().lastOrNull()
                 ?: throw IllegalStateException("Model output tensor has no class dimension.")
-            ModelContract.requireMatchingClassCount(modelOutputClasses, labels.size)
-            resultText.text = "Bereit — ${labels.size} Arten\n(${inputW}×${inputH})"
+            ModelContract.requireMatchingClassCount(modelClasses, labels.size)
+            binding.resultHeadline.text = getString(R.string.ready, labels.size)
+
+            val curated = lookalikes.values.sumOf { it.size }
+            if (curated == 0) {
+                binding.warningText.text = getString(R.string.no_lookalikes)
+            } else {
+                binding.warningText.text = getString(R.string.lookalike_count, curated)
+            }
         } catch (e: Exception) {
-            resultText.text = "Failed to load model: ${e.message}"
+            binding.resultHeadline.text = getString(R.string.model_failed, e.message)
             e.printStackTrace()
         }
     }
 
-    private fun loadLabels(): List<Species> {
-        return try {
-            assets.open("labels.txt").bufferedReader().readLines()
-                .map { it.trim() }
-                .filter { it.isNotBlank() && !it.startsWith("#") }
-                .map { line ->
-                    val parts = line.split("|")
-                    if (parts.size >= 3) {
-                        Species(parts[0].trim(), parts[1].trim().lowercase(), parts[2].trim())
-                    } else {
-                        // Legacy "Genus_species_edible" format
-                        val legacy = parts[0]
-                        val v = when {
-                            legacy.endsWith("_edible") -> "essbar"
-                            legacy.endsWith("_poisonous") -> "giftig"
-                            else -> "unbekannt"
-                        }
-                        val sci = legacy.removeSuffix("_edible").removeSuffix("_poisonous")
-                        Species(sci.replace('_', ' '), v, sci)
-                    }
-                }
-        } catch (e: Exception) {
-            emptyList()
+    private fun wireControls() {
+        binding.shutterButton.setOnClickListener { onShutter() }
+        binding.torchButton.setOnClickListener { toggleTorch() }
+        binding.historyButton.setOnClickListener { showHistory() }
+        binding.closeHistoryButton.setOnClickListener {
+            binding.historyPanel.visibility = View.GONE
+        }
+        binding.clearHistoryButton.setOnClickListener {
+            history.clear()
+            renderHistory()
+        }
+        previewView.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_UP) {
+                focusAt(view, event.x, event.y)
+            }
+            true
         }
     }
 
-    private fun allPermissionsGranted(): Boolean {
-        return REQUIRED_PERMISSIONS.all {
-            ContextCompat.checkSelfPermission(
-                baseContext, it
-            ) == PackageManager.PERMISSION_GRANTED
+    /** Freeze the current preview frame so the result stops moving, then analyse it. */
+    private fun onShutter() {
+        if (interpreter == null) {
+            toast(getString(R.string.model_missing))
+            return
         }
+        val bitmap = previewView.bitmap
+        if (bitmap == null) {
+            toast(getString(R.string.frame_missing))
+            return
+        }
+        frozen = bitmap
+        binding.shutterButton.setText(R.string.analyse_again)
+        analyse(bitmap)
+    }
+
+    private fun analyse(bitmap: Bitmap) {
+        val interpreter = interpreter ?: return
+        val crop = centreSquare(bitmap)
+        inferenceExecutor.execute {
+            try {
+                val scaled = Bitmap.createScaledBitmap(crop, inputW, inputH, true)
+                val pixels = IntArray(inputW * inputH)
+                scaled.getPixels(pixels, 0, inputW, 0, 0, inputW, inputH)
+                val buffer = ByteBuffer.allocateDirect(inputW * inputH * 3 * 4)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                for (p in pixels) {
+                    buffer.putFloat(((p shr 16) and 0xFF) / 255f)
+                    buffer.putFloat(((p shr 8) and 0xFF) / 255f)
+                    buffer.putFloat((p and 0xFF) / 255f)
+                }
+                buffer.rewind()
+
+                val output = Array(1) { FloatArray(labels.size.coerceAtLeast(1)) }
+                interpreter.run(buffer, output)
+                val probs = softmax(output[0])
+                val top = probs.indices.sortedByDescending { probs[it] }.take(3)
+
+                val ranked = top.mapNotNull { index ->
+                    labels.getOrNull(index)?.let { species ->
+                        RankedSpecies(species.name, species.scientific, species.verdict, probs[index])
+                    }
+                }
+                val bestIndex = top.firstOrNull()
+                val best = bestIndex?.let { labels.getOrNull(it) }
+                val bestProbability = bestIndex?.let { probs[it] } ?: 0f
+                val hint = best?.let { lookalikes[it.scientific]?.firstOrNull() }
+                val decision = VerdictPolicy.decide(best?.verdict, bestProbability, hint)
+                val view = ResultFormatter.format(ranked, decision)
+
+                runOnUiThread {
+                    render(view)
+                    recordHistory(best, bestProbability, decision, hint != null)
+                }
+            } catch (e: Exception) {
+                runOnUiThread { binding.resultHeadline.text = getString(R.string.inference_failed, e.message) }
+            }
+        }
+    }
+
+    private fun render(view: ResultView) {
+        binding.resultHeadline.text = view.headline
+        binding.resultHeadline.setTextColor(
+            when (view.tone) {
+                VerdictTone.DANGER -> 0xFFFF5252.toInt()
+                VerdictTone.SAFE -> 0xFF69F0AE.toInt()
+                VerdictTone.CAUTION -> 0xFFFFD54F.toInt()
+            }
+        )
+        binding.resultSubline.text = view.subline
+        binding.resultSubline.visibility = if (view.subline.isBlank()) View.GONE else View.VISIBLE
+        binding.resultTops.text = view.topLines.joinToString("\n")
+        binding.resultTops.visibility = if (view.topLines.isEmpty()) View.GONE else View.VISIBLE
+        binding.warningText.text = view.warning
+        binding.warningText.visibility = if (view.warning.isBlank()) View.GONE else View.VISIBLE
+        binding.emergencyText.text = view.emergency.orEmpty()
+        binding.emergencyText.visibility = if (view.emergency == null) View.GONE else View.VISIBLE
+        binding.qualityHint.text = ""
+    }
+
+    private fun recordHistory(
+        best: Species?,
+        probability: Float,
+        decision: VerdictDecision,
+        hasLookalike: Boolean,
+    ) {
+        val species = best ?: return
+        history.append(
+            HistoryEntry(
+                timestamp = clock.format(Date()),
+                scientific = species.scientific,
+                german = species.name,
+                confidence = probability,
+                verdict = decision.tone.name.lowercase(Locale.GERMANY),
+                lookalike = hasLookalike,
+            )
+        )
+    }
+
+    private fun showHistory() {
+        renderHistory()
+        binding.historyPanel.visibility = View.VISIBLE
+    }
+
+    private fun renderHistory() {
+        val list = binding.historyList
+        list.removeAllViews()
+        val entries = history.readNewestFirst()
+        if (entries.isEmpty()) {
+            list.addView(label(getString(R.string.history_empty)))
+            return
+        }
+        val toneMark = mapOf(
+            "danger" to "☠",
+            "caution" to "!",
+            "safe" to "✓",
+        )
+        for (entry in entries) {
+            val mark = toneMark[entry.verdict] ?: "·"
+            val percent = ResultFormatter.percent(entry.confidence)
+            val warning = if (entry.lookalike) " ⚠" else ""
+            list.addView(label("$mark  ${entry.timestamp}  ${entry.german} — $percent$warning"))
+        }
+    }
+
+    private fun label(text: String): TextView = TextView(this).apply {
+        this.text = text
+        setTextColor(0xFFFFFFFF.toInt())
+        textSize = 14f
+        setPadding(0, 12, 0, 12)
+    }
+
+    private fun centreSquare(bitmap: Bitmap): Bitmap {
+        val side = minOf(bitmap.width, bitmap.height)
+        return Bitmap.createBitmap(
+            bitmap,
+            (bitmap.width - side) / 2,
+            (bitmap.height - side) / 2,
+            side,
+            side,
+        )
+    }
+
+    private fun toggleTorch() {
+        val camera = camera ?: return
+        if (!camera.cameraInfo.hasFlashUnit()) {
+            toast(getString(R.string.no_torch))
+            return
+        }
+        torchOn = !torchOn
+        camera.cameraControl.enableTorch(torchOn)
+    }
+
+    private fun focusAt(view: View, x: Float, y: Float) {
+        val camera = camera ?: return
+        val action = FocusMeteringAction.Builder(
+            previewView.meteringPointFactory.createPoint(x, y)
+        ).build()
+        camera.cameraControl.startFocusAndMetering(action)
+    }
+
+    private fun toast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun loadLabels(): List<Species> =
+        assets.open("labels.txt").bufferedReader().readLines()
+            .map { it.trim() }
+            .filter { it.isNotBlank() && !it.startsWith("#") }
+            .map { line ->
+                val parts = line.split("|")
+                Species(parts[0].trim(), parts.getOrElse(1) { "unbekannt" }.trim().lowercase(), parts.getOrElse(2) { "" }.trim())
+            }
+
+    private fun allPermissionsGranted(): Boolean = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun requestPermissions() {
@@ -120,187 +306,131 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
-        grantResults: IntArray
+        grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_REQUEST_CODE) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Toast.makeText(
-                    this,
-                    "Permissions not granted by the user.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                finish()
-            }
+        if (requestCode != CAMERA_REQUEST_CODE) return
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            toast(getString(R.string.permission_denied))
+            finish()
         }
     }
 
-    private fun startCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
+    private var camera: androidx.camera.core.Camera? = null
 
-            val imageAnalyzer = ImageAnalysis.Builder()
+    private fun startCamera() {
+        val future = ProcessCameraProvider.getInstance(this)
+        future.addListener({
+            val provider = future.get()
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+            val analysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
-                    it.setAnalyzer(ContextCompat.getMainExecutor(this)) { imageProxy ->
-                        analyzeImage(imageProxy)
-                    }
+                    it.setAnalyzer(qualityExecutor) { proxy -> analyseQuality(proxy) }
                 }
-
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
             try {
-                cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    this as LifecycleOwner, cameraSelector, preview, imageAnalyzer
+                provider.unbindAll()
+                camera = provider.bindToLifecycle(
+                    this as LifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    analysis,
                 )
+                binding.torchButton.isEnabled = camera?.cameraInfo?.hasFlashUnit() == true
             } catch (exc: Exception) {
-                resultText.text = "Camera bind failed: ${exc.message}"
+                binding.resultHeadline.text = getString(R.string.camera_failed, exc.message)
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    /** RGBA_8888 ImageProxy -> Bitmap, honoring the row stride (may exceed width*4). */
-    private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
-        val plane = imageProxy.planes.firstOrNull() ?: return null
+    /**
+     * Live quality pass: no model, just enough to tell the user to move closer,
+     * add light or hold still. Never touches the frozen result.
+     */
+    private fun analyseQuality(proxy: ImageProxy) {
+        try {
+            val bitmap = proxyToBitmap(proxy) ?: return
+            val scaled = Bitmap.createScaledBitmap(bitmap, 224, 224, true)
+            val pixels = IntArray(224 * 224)
+            scaled.getPixels(pixels, 0, 224, 0, 0, 224, 224)
+            val gray = IntArray(pixels.size) { i ->
+                val p = pixels[i]
+                (((p shr 16) and 0xFF) * 299 + ((p shr 8) and 0xFF) * 587 + (p and 0xFF) * 114) / 1000
+            }
+            val quality = FrameQualityAnalyzer.analyze(gray, 224, 224)
+            val hint = FrameQualityPolicy.hint(quality)
+            runOnUiThread {
+                binding.qualityHint.text = when (hint) {
+                    QualityHint.DARK -> getString(R.string.hint_dark)
+                    QualityHint.BRIGHT -> getString(R.string.hint_bright)
+                    QualityHint.BLURRY -> getString(R.string.hint_blurry)
+                    QualityHint.OK -> getString(R.string.hint_ok)
+                }
+                binding.targetFrame.alpha = if (hint == QualityHint.OK) 1f else 0.55f
+            }
+        } catch (e: Exception) {
+            // A dropped quality frame must never disturb the frozen result.
+        } finally {
+            proxy.close()
+        }
+    }
+
+    /** RGBA_8888 ImageProxy -> Bitmap, honouring a row stride wider than width*4. */
+    private fun proxyToBitmap(proxy: ImageProxy): Bitmap? {
+        val plane = proxy.planes.firstOrNull() ?: return null
         val buffer = plane.buffer
         val pixelStride = plane.pixelStride
         val rowStride = plane.rowStride
-        val w = imageProxy.width
-        val h = imageProxy.height
-        val rowPadding = rowStride - w * pixelStride
-        val bitmap = if (rowPadding == 0) {
+        val w = proxy.width
+        val h = proxy.height
+        val padding = rowStride - w * pixelStride
+        return if (padding == 0) {
             buffer.rewind()
-            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply {
-                copyPixelsFromBuffer(buffer)
-            }
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { copyPixelsFromBuffer(buffer) }
         } else {
-            // Copy row by row to strip the padding
-            val dense = java.nio.ByteBuffer.allocate(w * h * pixelStride)
-            buffer.position(0)
+            val dense = ByteBuffer.allocate(w * h * pixelStride)
             for (row in 0 until h) {
                 buffer.position(row * rowStride)
-                for (col in 0 until w) {
-                    dense.putInt(buffer.int)
-                }
+                for (col in 0 until w) dense.putInt(buffer.int)
             }
             dense.position(0)
-            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply {
-                copyPixelsFromBuffer(dense)
-            }
-        }
-        return bitmap
-    }
-
-    private fun analyzeImage(imageProxy: ImageProxy) {
-        // Model failed to load (e.g. placeholder asset) — nothing to infer with.
-        val interpreter = interpreter
-        if (interpreter == null) {
-            imageProxy.close()
-            return
-        }
-
-        try {
-            val bitmap = imageProxyToBitmap(imageProxy)
-                ?: throw IllegalStateException("no RGBA plane")
-            val scaled = Bitmap.createScaledBitmap(bitmap, inputW, inputH, true)
-
-            val nPixels = inputW * inputH
-            val pixels = IntArray(nPixels)
-            scaled.getPixels(pixels, 0, inputW, 0, 0, inputW, inputH)
-            val inputBuffer = java.nio.ByteBuffer
-                .allocateDirect(1 * nPixels * 3 * 4)
-                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            for (p in pixels) {
-                inputBuffer.putFloat(((p shr 16) and 0xFF) / 255f)  // R
-                inputBuffer.putFloat(((p shr 8) and 0xFF) / 255f)   // G
-                inputBuffer.putFloat((p and 0xFF) / 255f)           // B
-            }
-            inputBuffer.rewind()
-
-            val nClasses = if (labels.isNotEmpty()) labels.size else 12
-            val outputArray = Array(1) { FloatArray(nClasses) }
-
-            inferenceExecutor.execute {
-                try {
-                    interpreter.run(inputBuffer, outputArray)
-                    val probs = softmax(outputArray[0])
-                    val ranked = probs.indices.sortedByDescending { probs[it] }
-                    val top = ranked.take(3)
-
-                    val lines = top.mapIndexed { rank, idx ->
-                        val sp = labels.getOrNull(idx)
-                        val name = sp?.name ?: "Klasse $idx"
-                        val p = probs[idx] * 100
-                        val conf = if (p >= 1.0) "${p.toInt()} %"
-                                   else String.format(java.util.Locale.GERMANY, "%.1f %%", p)
-                        val mark = when {
-                            sp?.isPoisonous == true -> " ☠"
-                            sp?.isEdible == true -> " ✓"
-                            else -> ""
-                        }
-                        "${rank + 1}. $name$mark — $conf"
-                    }
-                    val best = labels.getOrNull(top.first())
-                    val bestP = probs[top.first()]
-                    val decision = VerdictPolicy.decide(best?.verdict, bestP)
-                    val conf = (bestP * 100).toInt()
-
-                    runOnUiThread {
-                        resultText.text = "${decision.headline} ($conf %)\n" + lines.joinToString("\n")
-                        resultText.setTextColor(
-                            when (decision.tone) {
-                                VerdictTone.DANGER -> 0xFFD50000.toInt()
-                                VerdictTone.SAFE -> 0xFF00A000.toInt()
-                                VerdictTone.CAUTION -> 0xFFFF8F00.toInt()
-                            }
-                        )
-                        warningText.text = decision.warning
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread { resultText.text = "Inference error: ${e.message}" }
-                }
-            }
-        } catch (e: Exception) {
-            runOnUiThread { resultText.text = "Frame error: ${e.message}" }
-        } finally {
-            imageProxy.close()
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { copyPixelsFromBuffer(dense) }
         }
     }
 
     private fun softmax(logits: FloatArray): FloatArray {
-        val maxLogit = logits.max()
-        var sumExp = 0.0
+        val max = logits.maxOrNull() ?: 0f
+        var sum = 0.0
         val out = FloatArray(logits.size)
         for (i in logits.indices) {
-            out[i] = Math.exp((logits[i] - maxLogit).toDouble()).toFloat()
-            sumExp += out[i]
+            out[i] = Math.exp((logits[i] - max).toDouble()).toFloat()
+            sum += out[i]
         }
-        for (i in out.indices) out[i] = (out[i] / sumExp).toFloat()
+        for (i in out.indices) out[i] = (out[i] / sum).toFloat()
         return out
     }
 
     private fun loadModelFile(): MappedByteBuffer {
-        val fileDescriptor = assets.openFd("model.tflite")
-        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
-        val fileChannel = inputStream.channel
-        val startOffset = fileDescriptor.startOffset
-        val declaredLength = fileDescriptor.declaredLength
-        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+        val descriptor = assets.openFd("model.tflite")
+        val stream = FileInputStream(descriptor.fileDescriptor)
+        return stream.channel.map(
+            FileChannel.MapMode.READ_ONLY,
+            descriptor.startOffset,
+            descriptor.declaredLength,
+        )
     }
 
-    companion object {
-        private const val TAG = "MainActivity"
+    override fun onDestroy() {
+        super.onDestroy()
+        inferenceExecutor.shutdown()
+        qualityExecutor.shutdown()
+        interpreter?.close()
     }
 }

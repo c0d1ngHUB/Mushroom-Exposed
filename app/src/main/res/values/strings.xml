@@ -1,3 +1,30 @@
 <resources>
     <string name="app_name">Mushroom Exposed</string>
+
+    <string name="ready">Bereit — %1$d Arten. Pilz in den Rahmen, dann „Analysieren“.</string>
+    <string name="analyse_again">Nochmal</string>
+    <string name="lookalike_count">%1$d Verwechslungswarnungen geladen.</string>
+    <string name="no_lookalikes">Keine Verwechslungsdaten geladen — Vorsicht.</string>
+
+    <string name="model_failed">Modell konnte nicht geladen werden: %1$s</string>
+    <string name="model_missing">Modell fehlt — Analyse nicht möglich.</string>
+    <string name="frame_missing">Kein Kamerabild — kurz warten und erneut drücken.</string>
+    <string name="inference_failed">Analyse fehlgeschlagen: %1$s</string>
+    <string name="camera_failed">Kamera-Start fehlgeschlagen: %1$s</string>
+    <string name="permission_denied">Kamera-Berechtigung nicht erteilt.</string>
+    <string name="no_torch">Dieses Gerät hat kein Licht.</string>
+
+    <string name="hint_dark">Mehr Licht</string>
+    <string name="hint_bright">Zu hell — abschatten</string>
+    <string name="hint_blurry">Näher heran / ruhig halten</string>
+    <string name="hint_ok">Gut — auslösen</string>
+
+    <string name="low_confidence_hint">Unsicher — anderes Bild versuchen.</string>
+    <string name="history_empty">Noch keine Einträge.</string>
+    <string name="history_title">Verlauf (keine Fotos gespeichert)</string>
+    <string name="history_clear">Verlauf löschen</string>
+    <string name="history_close">Zurück zur Kamera</string>
+    <string name="history_open">Verlauf</string>
+    <string name="torch">Licht</string>
+    <string name="shutter">Analysieren</string>
 </resources>

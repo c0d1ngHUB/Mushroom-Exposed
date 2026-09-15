@@ -1,6 +1,7 @@
 package com.example.mushroomexposed
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VerdictPolicyTest {
@@ -38,5 +39,60 @@ class VerdictPolicyTest {
         assertEquals("nicht bewertet", decision.headline)
         assertEquals(VerdictTone.CAUTION, decision.tone)
         assertEquals("Verzehr-Einschätzung unbekannt — Pilzberatung fragen.", decision.warning)
+    }
+
+    @Test
+    fun `dangerous lookalike never yields a green edible verdict`() {
+        val lookalike = Lookalike(
+            kind = LookalikeKind.GEFAEHRLICH,
+            key = "Amanita_phalloides",
+            name = "Grüner Knollenblätterpilz",
+            evidence = "Junge Fruchtkörper ähneln tödlich giftigen Knollenblätterpilzen.",
+        )
+
+        val decision = VerdictPolicy.decide("essbar", confidence = 0.95f, lookalike = lookalike)
+
+        assertEquals(VerdictTone.CAUTION, decision.tone)
+        assertTrue(decision.warning.startsWith("Nur bei sicherer Bestimmung essen"))
+        assertTrue(decision.warning.contains("Grüner Knollenblätterpilz"))
+        assertTrue(decision.warning.contains("Knollenblätterpilzen"))
+    }
+
+    @Test
+    fun `attention lookalike keeps the tone and appends the hint`() {
+        val lookalike = Lookalike(
+            kind = LookalikeKind.ACHTUNG,
+            key = "Agaricus_xanthodermus",
+            name = "Karbol-Champignon",
+            evidence = "",
+        )
+
+        val decision = VerdictPolicy.decide("essbar", confidence = 0.80f, lookalike = lookalike)
+
+        assertEquals(VerdictTone.SAFE, decision.tone)
+        assertTrue(decision.warning.contains("Karbol-Champignon"))
+    }
+
+    @Test
+    fun `dangerous lookalike of a poisonous find keeps the danger tone`() {
+        val lookalike = Lookalike(
+            kind = LookalikeKind.GEFAEHRLICH,
+            key = "Amanita_phalloides",
+            name = "Grüner Knollenblätterpilz",
+            evidence = "tödlich giftig",
+        )
+
+        val decision = VerdictPolicy.decide("giftig", confidence = 0.99f, lookalike = lookalike)
+
+        assertEquals("GIFTIG !!", decision.headline)
+        assertEquals(VerdictTone.DANGER, decision.tone)
+    }
+
+    @Test
+    fun `missing lookalike keeps the previous behaviour`() {
+        val decision = VerdictPolicy.decide("essbar", confidence = 0.80f, lookalike = null)
+
+        assertEquals(VerdictTone.SAFE, decision.tone)
+        assertEquals("Nur bei sicherer Bestimmung essen — nie auf App verlassen.", decision.warning)
     }
 }
