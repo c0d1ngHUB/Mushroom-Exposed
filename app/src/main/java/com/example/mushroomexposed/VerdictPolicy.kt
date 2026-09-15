@@ -15,7 +15,25 @@ data class VerdictDecision(
 object VerdictPolicy {
     const val CONFIDENCE_THRESHOLD = 0.40f
 
-    fun decide(verdict: String?, confidence: Float): VerdictDecision = when {
+    fun lookalikeSentence(lookalike: Lookalike): String =
+        if (lookalike.evidence.isBlank()) {
+            "Achtung Verwechslung: sieht aus wie ${lookalike.targetName}."
+        } else {
+            "Achtung Verwechslung mit ${lookalike.targetName}: ${lookalike.evidence}"
+        }
+
+    /**
+     * A dangerous lookalike must never leave the card green: the edible headline
+     * is kept, but the tone drops to CAUTION so the field user sees the warning.
+     */
+    fun decide(verdict: String?, confidence: Float, lookalike: Lookalike? = null): VerdictDecision {
+        val base = baseDecision(verdict, confidence)
+        if (lookalike == null) return base
+        val tone = if (lookalike.isDangerous && base.tone == VerdictTone.SAFE) VerdictTone.CAUTION else base.tone
+        return base.copy(tone = tone, warning = "${base.warning} ${lookalikeSentence(lookalike)}")
+    }
+
+    private fun baseDecision(verdict: String?, confidence: Float): VerdictDecision = when {
         verdict == "giftig" -> VerdictDecision(
             headline = "GIFTIG !!",
             warning = "Nicht verzehren. Im Zweifel Pilzberatung fragen.",
