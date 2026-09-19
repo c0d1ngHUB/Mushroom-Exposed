@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private var inputH = 224
     private var torchOn = false
     private var frozen: Bitmap? = null
+    private val fieldMode = FieldModeMachine()
 
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private val qualityExecutor = Executors.newSingleThreadExecutor()
@@ -121,20 +122,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Freeze the current preview frame so the result stops moving, then analyse it. */
+    /** Route the shutter press through the field-mode state machine. */
     private fun onShutter() {
+        when (fieldMode.onPrimaryAction()) {
+            FieldModeAction.CAPTURE -> captureAndAnalyse()
+            FieldModeAction.RETURN_TO_LIVE -> showLiveMode()
+            FieldModeAction.IGNORE -> Unit
+        }
+    }
+
+    private fun captureAndAnalyse() {
         if (interpreter == null) {
+            fieldMode.onCaptureUnavailable()
             toast(getString(R.string.model_missing))
             return
         }
         val bitmap = previewView.bitmap
         if (bitmap == null) {
+            fieldMode.onCaptureUnavailable()
             toast(getString(R.string.frame_missing))
             return
         }
-        frozen = bitmap
-        binding.shutterButton.setText(R.string.analyse_again)
+        showAnalysingMode(bitmap)
         analyse(bitmap)
+    }
+
+    private fun showAnalysingMode(bitmap: Bitmap) {
+        frozen = bitmap
+        binding.frozenImage.setImageBitmap(bitmap)
+        binding.frozenImage.visibility = View.VISIBLE
+        binding.targetFrame.visibility = View.GONE
+        binding.qualityHint.text = ""
+        binding.qualityHint.visibility = View.GONE
+        binding.resultHeadline.setText(R.string.analysing)
+        binding.resultHeadline.setTextColor(0xFFFFFFFF.toInt())
+        binding.resultSubline.visibility = View.GONE
+        binding.resultTops.visibility = View.GONE
+        binding.warningText.visibility = View.GONE
+        binding.emergencyText.visibility = View.GONE
+        binding.shutterButton.setText(R.string.analysing)
+        binding.shutterButton.isEnabled = false
     }
 
     private fun analyse(bitmap: Bitmap) {
@@ -172,11 +199,17 @@ class MainActivity : AppCompatActivity() {
                 val view = ResultFormatter.format(ranked, decision)
 
                 runOnUiThread {
+                    fieldMode.onAnalysisFinished()
                     render(view)
                     recordHistory(best, bestProbability, decision, hint != null)
+                    showFrozenControls()
                 }
             } catch (e: Exception) {
-                runOnUiThread { binding.resultHeadline.text = getString(R.string.inference_failed, e.message) }
+                runOnUiThread {
+                    fieldMode.onAnalysisFinished()
+                    binding.resultHeadline.text = getString(R.string.inference_failed, e.message)
+                    showFrozenControls()
+                }
             }
         }
     }
@@ -199,6 +232,28 @@ class MainActivity : AppCompatActivity() {
         binding.emergencyText.text = view.emergency.orEmpty()
         binding.emergencyText.visibility = if (view.emergency == null) View.GONE else View.VISIBLE
         binding.qualityHint.text = ""
+    }
+
+    private fun showFrozenControls() {
+        binding.shutterButton.setText(R.string.new_capture)
+        binding.shutterButton.isEnabled = true
+    }
+
+    private fun showLiveMode() {
+        frozen = null
+        binding.frozenImage.setImageDrawable(null)
+        binding.frozenImage.visibility = View.GONE
+        binding.targetFrame.visibility = View.VISIBLE
+        binding.qualityHint.visibility = View.GONE
+        binding.qualityHint.text = ""
+        binding.shutterButton.isEnabled = true
+        binding.shutterButton.setText(R.string.shutter)
+        binding.resultHeadline.text = getString(R.string.ready, labels.size)
+        binding.resultHeadline.setTextColor(0xFFFFFFFF.toInt())
+        binding.resultSubline.visibility = View.GONE
+        binding.resultTops.visibility = View.GONE
+        binding.warningText.visibility = View.GONE
+        binding.emergencyText.visibility = View.GONE
     }
 
     private fun recordHistory(
@@ -356,6 +411,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun analyseQuality(proxy: ImageProxy) {
         try {
+            if (!fieldMode.acceptsQualityUpdates) return
             val bitmap = proxyToBitmap(proxy) ?: return
             val scaled = Bitmap.createScaledBitmap(bitmap, 224, 224, true)
             val pixels = IntArray(224 * 224)
@@ -367,6 +423,8 @@ class MainActivity : AppCompatActivity() {
             val quality = FrameQualityAnalyzer.analyze(gray, 224, 224)
             val hint = FrameQualityPolicy.hint(quality)
             runOnUiThread {
+                if (!fieldMode.acceptsQualityUpdates) return@runOnUiThread
+                binding.qualityHint.visibility = View.VISIBLE
                 binding.qualityHint.text = when (hint) {
                     QualityHint.DARK -> getString(R.string.hint_dark)
                     QualityHint.BRIGHT -> getString(R.string.hint_bright)
