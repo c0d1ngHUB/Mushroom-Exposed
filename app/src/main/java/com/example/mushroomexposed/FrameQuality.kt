@@ -11,8 +11,12 @@ data class FrameQuality(
 enum class QualityHint { DARK, BRIGHT, BLURRY, OK }
 
 object FrameQualityPolicy {
-    // Startwerte aus der Spec (docs/superpowers/specs/2026-09-15-feldmodus-ux-design.md);
-    // im Geräte-Smoke-Test an echten Pilzfotos nachgezogen.
+    // Startwerte aus der Spec (docs/superpowers/specs/2026-09-15-feldmodus-ux-design.md).
+    // Am 19.09.2026 gegen die 39 Feldbilder des Galinawald-Sets nachgerechnet
+    // (docs/superpowers/notes/frame-quality-kalibrierung.md im Trainings-Repo):
+    // 37/39 OK, 2 korrekt DARK. Kein Wert wurde verschoben — die Startwerte
+    // halten. MIN_SHARPNESS gilt NUR bei 224x224; die Laplace-Varianz skaliert
+    // mit der Pixelzahl, und die App rechnet fest auf 224x224 herunter.
     const val MIN_LUMINANCE = 0.18f
     const val MAX_LUMINANCE = 0.82f
     const val MAX_OVEREXPOSED = 0.30f
