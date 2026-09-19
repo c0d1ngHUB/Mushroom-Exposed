@@ -9,7 +9,16 @@ An Android app for automatic mushroom identification via video using CameraX and
   The result stays on screen until the next press — no flickering live lines.
 - On-device classification of 663 Central-European species with German display names
 - Edibility verdict (essbar / giftig / unbekannt) with a confidence threshold: an
-  "essbar" headline is never granted below 40 % confidence
+  "essbar" headline is never granted below **60 %** confidence. The threshold was
+  raised from 40 % to 60 % on 2026-09-19, after measuring on the frozen GBIF set
+  that 40 % released 27 poisonous images as edible across four models — 60 %
+  cuts that to 19 while keeping 83–93 % of the correct releases.
+- Toxic-release guards on the verdict card (measured 2026-09-19). A shortlist
+  containing a poisonous species, or a warning genus (`Amanita`, `Clitocybe` —
+  derived at runtime as genera with ≥2 poisonous and no edible member), drops an
+  "essbar" card to the caution tone without taking the release away. Measured on
+  the frozen set: all 13 dangerous releases above the threshold land on caution,
+  none stays green.
 - Lookalike warnings: when the species found has a dangerous doppelgänger
   (Knollenblätterpilz, Pantherpilz, Gifthäubling, …), the verdict card drops to a
   caution tone and names the species to compare against
@@ -34,12 +43,10 @@ An Android app for automatic mushroom identification via video using CameraX and
 ./gradlew assembleDebug          # -> app/build/outputs/apk/debug/app-debug.apk
 ./gradlew testDebugUnitTest      # unit tests: verdict policy, history, lookalikes, quality
 
-# instrumented layout regression (needs a booted device/emulator)
-./gradlew assembleDebugAndroidTest
-adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w \
-  -e class com.example.mushroomexposed.SystemBarsLayoutTest \
-  com.example.mushroomexposed.test/androidx.test.runner.AndroidJUnitRunner
+# instrumented layout regression (needs a booted device/emulator).
+# Set ANDROID_SERIAL when a physical device is also attached: Gradle otherwise
+# picks every device and MIUI aborts the install with INSTALL_FAILED_USER_RESTRICTED.
+ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
 ```
 
 ## Layout
@@ -54,7 +61,16 @@ app/src/main/java/com/example/mushroomexposed/
   LookalikeData.kt    parser for assets/lookalikes.txt (unit-tested)
   History.kt          append-only JSONL history store, cap 200 (unit-tested)
   ModelContract.kt    model/label class-count guard
+  ToxicGenus.kt       warning-genus detection from labels.txt (unit-tested)
 ```
+
+## Release state
+
+Shipping asset is **v0.6.0** (`model.tflite`, sha256 starts `001d6aed`). The GBIF
+candidate (663 classes, 288 px input) passes the release gate on all three seeds
+but is **not** staged — the gate only covers 43 of 664 classes (6.5 %), so its
+numbers justify neither staging nor rejection for the rest. See the training
+repo's `docs/superpowers/notes/` for the measurements.
 
 ## License
 
