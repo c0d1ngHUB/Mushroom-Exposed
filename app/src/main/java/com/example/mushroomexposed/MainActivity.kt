@@ -134,6 +134,7 @@ class MainActivity : AppCompatActivity() {
         previewView.setOnTouchListener { view, event ->
             if (event.action == MotionEvent.ACTION_UP) {
                 focusAt(view, event.x, event.y)
+                view.performClick()
             }
             true
         }

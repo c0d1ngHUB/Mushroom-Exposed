@@ -124,7 +124,7 @@
             android:layout_height="@dimen/row_min_height"
             android:layout_marginEnd="8dp"
             android:background="@drawable/bg_chip"
-            android:drawableStart="@drawable/ic_history"
+            app:drawableStartCompat="@drawable/ic_history"
             android:drawablePadding="8dp"
             android:gravity="center_vertical"
             android:paddingHorizontal="14dp"
@@ -322,6 +322,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:baselineAligned="false"
                     android:orientation="horizontal">
 
                     <LinearLayout
@@ -350,7 +351,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/emergency_poison_label"
                             android:textColor="#FFF3EAE8"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -378,7 +379,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/emergency_emergency_label"
                             android:textColor="#FFF3EAE8"
-                            android:textSize="10sp" />
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </LinearLayout>
 

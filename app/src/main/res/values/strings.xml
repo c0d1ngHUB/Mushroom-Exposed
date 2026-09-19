@@ -45,12 +45,9 @@
     <string name="cd_history">Verlauf öffnen</string>
     <string name="cd_call">%1$s anrufen</string>
 
-    <string name="low_confidence_hint">Unsicher — anderes Bild versuchen.</string>
     <string name="history_empty">Noch keine Einträge.</string>
     <string name="history_title">Verlauf (keine Fotos gespeichert)</string>
     <string name="history_clear">Verlauf löschen</string>
     <string name="history_close">Zurück zur Kamera</string>
     <string name="history_open">Verlauf</string>
-    <string name="torch">Licht</string>
-    <string name="shutter">Analysieren</string>
 </resources>

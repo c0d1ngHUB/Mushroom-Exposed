@@ -7,7 +7,7 @@
 -->
 <resources>
     <color name="paper">#FFFAF6EE</color>
-    <color name="paper_dim">#FFF0EADD</color>
+    <color name="paper_dim">#FFF0EADD</color>  <!-- Listenzeilen im Verlauf -->
     <color name="card">#FFF2ECDF</color>
     <color name="line">#FFD9D2C4</color>
 
@@ -37,6 +37,4 @@
     <color name="call_poison">#FFC2311F</color>
     <color name="call_emergency">#FF8F1D14</color>
 
-    <color name="white">#FFFFFFFF</color>
-    <color name="black">#FF000000</color>
 </resources>
