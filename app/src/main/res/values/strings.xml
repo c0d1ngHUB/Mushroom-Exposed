@@ -2,7 +2,9 @@
     <string name="app_name">Mushroom Exposed</string>
 
     <string name="ready">Bereit — %1$d Arten. Pilz in den Rahmen, dann „Analysieren“.</string>
-    <string name="analyse_again">Nochmal</string>
+    <string name="analysing">Analysiere …</string>
+    <string name="new_capture">Neu</string>
+    <string name="frozen_frame">Aufgenommenes Pilzbild</string>
     <string name="lookalike_count">%1$d Verwechslungswarnungen geladen.</string>
     <string name="no_lookalikes">Keine Verwechslungsdaten geladen — Vorsicht.</string>
 
