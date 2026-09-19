@@ -51,6 +51,8 @@ class MainActivity : AppCompatActivity() {
     private var interpreter: Interpreter? = null
     private var labels: List<Species> = emptyList()
     private var lookalikes: Map<String, List<Lookalike>> = emptyMap()
+    /** Einmal aus den Labels berechnet, nicht pro Inferenz. */
+    private var riskyGenera: Set<String> = emptySet()
     private var inputW = 224
     private var inputH = 224
     private var torchOn = false
@@ -83,6 +85,7 @@ class MainActivity : AppCompatActivity() {
             interpreter = Interpreter(loadModelFile())
             labels = loadLabels()
             lookalikes = LookalikeData.load(assets, labels.associate { it.scientific to it.name })
+            riskyGenera = ToxicGenus.riskyGenera(labels.associate { it.scientific to it.verdict })
             val shape = interpreter!!.getInputTensor(0).shape()
             inputH = shape[1]
             inputW = shape[2]
@@ -195,7 +198,27 @@ class MainActivity : AppCompatActivity() {
                 val best = bestIndex?.let { labels.getOrNull(it) }
                 val bestProbability = bestIndex?.let { probs[it] } ?: 0f
                 val hint = best?.let { lookalikes[it.scientific]?.firstOrNull() }
-                val decision = VerdictPolicy.decide(best?.verdict, bestProbability, hint)
+                // Liegt eine giftige Art in der kurzen Trefferliste, wird eine
+                // "essbar"-Freigabe zurueckgestuft. Messbefund 19.09.2026: das
+                // Modell gibt giftige Arten als essbar frei, die Konfidenz
+                // verraet das nicht -- die giftige Alternative in den Top-3 schon.
+                val toxicAlternative = ranked.firstOrNull { it.verdict == "giftig" }
+                // Zweites, breiteres Signal: die Gattung. Die schlimmsten
+                // Fehlfreigaben fuehren Knollenblaetterpilze in den Top-3, aber
+                // als *essbare* (Amanita_ceciliae) -- das Verdict sieht das
+                // nicht, die Gattung schon. Nur Hinweis, keine Blockade: als
+                // Blockade gemessen kostet die Regel die Haelfte der Freigaben.
+                val toxicGenus = ToxicGenus.firstRisky(
+                    ranked.map { it.scientific },
+                    riskyGenera,
+                )
+                val decision = VerdictPolicy.decide(
+                    best?.verdict,
+                    bestProbability,
+                    hint,
+                    toxicAlternative?.germanName,
+                    toxicGenus,
+                )
                 val view = ResultFormatter.format(ranked, decision)
 
                 runOnUiThread {
