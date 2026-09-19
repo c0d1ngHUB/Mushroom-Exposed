@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ausloeser: 88dp statt Material-Standard, mit Handschuhen zu treffen. -->
+    <dimen name="shutter_size">88dp</dimen>
+    <dimen name="control_size">54dp</dimen>
+    <!-- Jedes Antippziel bleibt ueber der 48dp-Marke. -->
+    <dimen name="min_touch_target">48dp</dimen>
+    <dimen name="row_min_height">48dp</dimen>
+
+    <dimen name="target_frame">230dp</dimen>
+    <dimen name="sheet_radius">24dp</dimen>
+    <dimen name="sheet_max_height">600dp</dimen>
+    <dimen name="sheet_pad">20dp</dimen>
+    <dimen name="emergency_button_height">64dp</dimen>
+</resources>

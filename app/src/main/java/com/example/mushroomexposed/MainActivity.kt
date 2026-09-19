@@ -1,8 +1,10 @@
 package com.example.mushroomexposed
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.util.Size
 import android.view.MotionEvent
@@ -10,6 +12,8 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
@@ -92,24 +96,28 @@ class MainActivity : AppCompatActivity() {
             val modelClasses = interpreter!!.getOutputTensor(0).shape().lastOrNull()
                 ?: throw IllegalStateException("Model output tensor has no class dimension.")
             ModelContract.requireMatchingClassCount(modelClasses, labels.size)
-            binding.resultHeadline.text = getString(R.string.ready, labels.size)
+            binding.resultHeadline.text = getString(R.string.status_ready, labels.size)
 
             val curated = lookalikes.values.sumOf { it.size }
-            if (curated == 0) {
-                binding.warningText.text = getString(R.string.no_lookalikes)
+            binding.statusDetail.text = if (curated == 0) {
+                getString(R.string.lookalikes_missing)
             } else {
-                binding.warningText.text = getString(R.string.lookalike_count, curated)
+                getString(R.string.lookalikes_loaded, curated)
             }
         } catch (e: Exception) {
             binding.resultHeadline.text = getString(R.string.model_failed, e.message)
+            binding.statusDetail.visibility = View.GONE
+            ViewStyling.fillOf(this, binding.statusPill, color(R.color.verdict_danger))
             e.printStackTrace()
         }
     }
 
     private fun wireControls() {
         binding.shutterButton.setOnClickListener { onShutter() }
+        binding.newChip.setOnClickListener { onShutter() }
         binding.torchButton.setOnClickListener { toggleTorch() }
         binding.historyButton.setOnClickListener { showHistory() }
+        binding.historyChip.setOnClickListener { showHistory() }
         binding.closeHistoryButton.setOnClickListener {
             binding.historyPanel.visibility = View.GONE
         }
@@ -117,13 +125,31 @@ class MainActivity : AppCompatActivity() {
             history.clear()
             renderHistory()
         }
+        binding.callPoisonButton.setOnClickListener {
+            dial(ResultFormatter.POISON_CONTROL_NUMBER)
+        }
+        binding.callEmergencyButton.setOnClickListener {
+            dial(ResultFormatter.EMERGENCY_NUMBER)
+        }
         previewView.setOnTouchListener { view, event ->
             if (event.action == MotionEvent.ACTION_UP) {
                 focusAt(view, event.x, event.y)
+                view.performClick()
             }
             true
         }
     }
+
+    /** Notruf-Ziel waehlen. Die Nummer kommt aus ResultFormatter, nicht aus dem UI. */
+    private fun dial(number: String) {
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${number.replace(" ", "")}"))
+        if (intent.resolveActivity(packageManager) == null) {
+            toast(getString(R.string.dial_failed))
+            return
+        }
+        startActivity(intent)
+    }
+
 
     /** Route the shutter press through the field-mode state machine. */
     private fun onShutter() {
@@ -157,14 +183,14 @@ class MainActivity : AppCompatActivity() {
         binding.targetFrame.visibility = View.GONE
         binding.qualityHint.text = ""
         binding.qualityHint.visibility = View.GONE
+        binding.resultSheet.visibility = View.GONE
+        binding.frozenChips.visibility = View.GONE
+        binding.statusPill.visibility = View.VISIBLE
+        ViewStyling.fillOf(this, binding.statusPill, color(R.color.scrim))
         binding.resultHeadline.setText(R.string.analysing)
-        binding.resultHeadline.setTextColor(0xFFFFFFFF.toInt())
-        binding.resultSubline.visibility = View.GONE
-        binding.resultTops.visibility = View.GONE
-        binding.warningText.visibility = View.GONE
-        binding.emergencyText.visibility = View.GONE
-        binding.shutterButton.setText(R.string.analysing)
+        binding.statusDetail.visibility = View.GONE
         binding.shutterButton.isEnabled = false
+        binding.shutterButton.alpha = 0.55f
     }
 
     private fun analyse(bitmap: Bitmap) {
@@ -231,35 +257,118 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     fieldMode.onAnalysisFinished()
                     binding.resultHeadline.text = getString(R.string.inference_failed, e.message)
+                    binding.statusDetail.visibility = View.GONE
+                    ViewStyling.fillOf(this, binding.statusPill, color(R.color.verdict_danger))
+                    binding.resultSheet.visibility = View.GONE
+                    binding.frozenChips.visibility = View.VISIBLE
                     showFrozenControls()
                 }
             }
         }
     }
 
+    /** Ergebnis-Sheet im Wald-Look: Marke, Artname, Warnkarte, Top-3, Notfall. */
     private fun render(view: ResultView) {
+        val palette = when (view.tone) {
+            VerdictTone.DANGER -> VerdictColors(
+                mark = color(R.color.verdict_danger),
+                tint = color(R.color.verdict_danger_tint),
+                ink = color(R.color.verdict_danger_ink),
+            )
+            VerdictTone.CAUTION -> VerdictColors(
+                mark = color(R.color.verdict_caution),
+                tint = color(R.color.verdict_caution_tint),
+                ink = color(R.color.verdict_caution_ink),
+            )
+            VerdictTone.SAFE -> VerdictColors(
+                mark = color(R.color.verdict_safe),
+                tint = color(R.color.verdict_safe_tint),
+                ink = color(R.color.verdict_safe_ink),
+            )
+        }
+
+        // Statuspille: Ampelmarke plus Kurztext, damit das Urteil auch oben sichtbar ist.
+        binding.statusPill.visibility = View.VISIBLE
+        ViewStyling.fillOf(this, binding.statusPill, palette.mark)
         binding.resultHeadline.text = view.headline
-        binding.resultHeadline.setTextColor(
-            when (view.tone) {
-                VerdictTone.DANGER -> 0xFFFF5252.toInt()
-                VerdictTone.SAFE -> 0xFF69F0AE.toInt()
-                VerdictTone.CAUTION -> 0xFFFFD54F.toInt()
-            }
-        )
+        binding.statusDetail.visibility = View.GONE
+
+        // Sheet.
+        binding.resultSheet.visibility = View.VISIBLE
+        binding.resultBadge.text = when (view.tone) {
+            VerdictTone.DANGER -> getString(R.string.badge_danger)
+            VerdictTone.CAUTION -> getString(R.string.badge_caution)
+            VerdictTone.SAFE -> getString(R.string.badge_safe)
+        }
+        ViewStyling.fillOf(this, binding.resultBadge, palette.mark)
+        binding.resultName.text = view.name
         binding.resultSubline.text = view.subline
         binding.resultSubline.visibility = if (view.subline.isBlank()) View.GONE else View.VISIBLE
-        binding.resultTops.text = view.topLines.joinToString("\n")
-        binding.resultTops.visibility = if (view.topLines.isEmpty()) View.GONE else View.VISIBLE
+
         binding.warningText.text = view.warning
         binding.warningText.visibility = if (view.warning.isBlank()) View.GONE else View.VISIBLE
-        binding.emergencyText.text = view.emergency.orEmpty()
-        binding.emergencyText.visibility = if (view.emergency == null) View.GONE else View.VISIBLE
+        if (view.warning.isNotBlank()) {
+            ViewStyling.fillOf(this, binding.warningText, palette.tint)
+            binding.warningText.setTextColor(palette.ink)
+            ViewStyling.strokeOf(this, binding.warningText, palette.mark)
+        }
+
+        renderTops(view, palette)
+
+        // Notfallblock nur, wenn das Urteil nicht sicher ist.
+        val showEmergency = view.emergency != null
+        binding.emergencyBlock.visibility = if (showEmergency) View.VISIBLE else View.GONE
+        if (showEmergency) {
+            binding.callPoisonNumber.text = ResultFormatter.POISON_CONTROL_NUMBER
+            binding.callEmergencyNumber.text = ResultFormatter.EMERGENCY_NUMBER
+            binding.callPoisonButton.contentDescription =
+                getString(R.string.cd_call, ResultFormatter.POISON_CONTROL_NUMBER)
+            binding.callEmergencyButton.contentDescription =
+                getString(R.string.cd_call, ResultFormatter.EMERGENCY_NUMBER)
+            binding.callPoisonButton.background =
+                ViewStyling.rounded(this, 14, color(R.color.call_poison))
+            binding.callEmergencyButton.background =
+                ViewStyling.rounded(this, 14, color(R.color.call_emergency))
+        }
+
+        // Notfall-Wortlaut fuer Vorlesehilfen: derselbe gepinnte Satz wie im Test.
+        binding.emergencyBlock.contentDescription =
+            if (showEmergency) ResultFormatter.EMERGENCY_TEXT else null
+
         binding.qualityHint.text = ""
+        binding.qualityHint.visibility = View.GONE
+    }
+
+    /** Top-3 als eigene Zeilen statt einer Textwand; giftige Raenge rot. */
+    private fun renderTops(view: ResultView, palette: VerdictColors) {
+        val list = binding.resultTops
+        list.removeAllViews()
+        list.visibility = if (view.tops.isEmpty()) View.GONE else View.VISIBLE
+        if (view.tops.isEmpty()) return
+
+        for (row in view.tops) {
+            val rowView = layoutInflater.inflate(R.layout.row_top_hit, list, false)
+            val rank = rowView.findViewById<TextView>(R.id.topRank)
+            val label = rowView.findViewById<TextView>(R.id.topLabel)
+            val mark = rowView.findViewById<TextView>(R.id.topMark)
+
+            rank.text = "${row.rank}"
+            label.text = row.label
+            mark.text = row.mark
+            mark.setTextColor(if (row.toxic) color(R.color.verdict_danger) else palette.ink)
+            mark.visibility = if (row.mark.isBlank()) View.GONE else View.VISIBLE
+            list.addView(rowView)
+        }
     }
 
     private fun showFrozenControls() {
-        binding.shutterButton.setText(R.string.new_capture)
+        // Das Ergebnis-Sheet deckt die Steuerleiste; Neu und Verlauf werden zu
+        // schwebenden Chips ueber dem sichtbaren Rest des Standbilds.
+        binding.controls.visibility = View.GONE
+        binding.resultSheet.visibility = View.VISIBLE
+        binding.frozenChips.visibility = View.VISIBLE
         binding.shutterButton.isEnabled = true
+        binding.shutterButton.alpha = 1f
     }
 
     private fun showLiveMode() {
@@ -269,14 +378,22 @@ class MainActivity : AppCompatActivity() {
         binding.targetFrame.visibility = View.VISIBLE
         binding.qualityHint.visibility = View.GONE
         binding.qualityHint.text = ""
+        binding.resultSheet.visibility = View.GONE
+        binding.frozenChips.visibility = View.GONE
+        binding.controls.visibility = View.VISIBLE
         binding.shutterButton.isEnabled = true
-        binding.shutterButton.setText(R.string.shutter)
-        binding.resultHeadline.text = getString(R.string.ready, labels.size)
-        binding.resultHeadline.setTextColor(0xFFFFFFFF.toInt())
-        binding.resultSubline.visibility = View.GONE
-        binding.resultTops.visibility = View.GONE
-        binding.warningText.visibility = View.GONE
-        binding.emergencyText.visibility = View.GONE
+        binding.shutterButton.alpha = 1f
+        binding.statusPill.visibility = View.VISIBLE
+        ViewStyling.fillOf(this, binding.statusPill, color(R.color.scrim))
+        binding.resultHeadline.text = getString(R.string.status_ready, labels.size)
+        binding.statusDetail.visibility = View.VISIBLE
+
+        val curated = lookalikes.values.sumOf { it.size }
+        binding.statusDetail.text = if (curated == 0) {
+            getString(R.string.lookalikes_missing)
+        } else {
+            getString(R.string.lookalikes_loaded, curated)
+        }
     }
 
     private fun recordHistory(
@@ -320,16 +437,33 @@ class MainActivity : AppCompatActivity() {
             val mark = toneMark[entry.verdict] ?: "·"
             val percent = ResultFormatter.percent(entry.confidence)
             val warning = if (entry.lookalike) " ⚠" else ""
-            list.addView(label("$mark  ${entry.timestamp}  ${entry.german} — $percent$warning"))
+            val tone = when (entry.verdict) {
+                "danger" -> VerdictTone.DANGER
+                "caution" -> VerdictTone.CAUTION
+                "safe" -> VerdictTone.SAFE
+                else -> null
+            }
+            list.addView(label("$mark  ${entry.timestamp}  ${entry.german} — $percent$warning", tone))
+
         }
     }
 
-    private fun label(text: String): TextView = TextView(this).apply {
+    private fun label(text: String, tone: VerdictTone? = null): TextView = TextView(this).apply {
         this.text = text
-        setTextColor(0xFFFFFFFF.toInt())
         textSize = 14f
         setPadding(0, 12, 0, 12)
+        setTextColor(
+            when (tone) {
+                VerdictTone.DANGER -> color(R.color.verdict_danger)
+                VerdictTone.CAUTION -> color(R.color.verdict_caution)
+                VerdictTone.SAFE -> color(R.color.verdict_safe)
+                null -> color(R.color.ink)
+            }
+        )
     }
+
+    /** Farbe aus den Wald-Tokens. */
+    private fun color(resId: Int): Int = ViewStyling.colorOf(this, resId)
 
     private fun centreSquare(bitmap: Bitmap): Bitmap {
         val side = minOf(bitmap.width, bitmap.height)
