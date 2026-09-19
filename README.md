@@ -33,6 +33,13 @@ An Android app for automatic mushroom identification via video using CameraX and
 ```bash
 ./gradlew assembleDebug          # -> app/build/outputs/apk/debug/app-debug.apk
 ./gradlew testDebugUnitTest      # unit tests: verdict policy, history, lookalikes, quality
+
+# instrumented layout regression (needs a booted device/emulator)
+./gradlew assembleDebugAndroidTest
+adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w \
+  -e class com.example.mushroomexposed.SystemBarsLayoutTest \
+  com.example.mushroomexposed.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 ## Layout
@@ -40,6 +47,7 @@ An Android app for automatic mushroom identification via video using CameraX and
 ```
 app/src/main/java/com/example/mushroomexposed/
   MainActivity.kt     camera, shutter/freeze, inference, history UI
+  FieldMode.kt        LIVE/ANALYSING/FROZEN field-mode state machine (unit-tested)
   VerdictPolicy.kt    edibility decision incl. lookalike override (unit-tested)
   ResultFormatter.kt  result card formatting (unit-tested)
   FrameQuality.kt     luminance / sharpness / overexposure hints (unit-tested)
