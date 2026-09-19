@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bottom-Sheet: Papierflaeche mit gerundeter Oberkante und weichem Schatten. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/paper" />
+    <corners
+        android:topLeftRadius="@dimen/sheet_radius"
+        android:topRightRadius="@dimen/sheet_radius" />
+</shape>

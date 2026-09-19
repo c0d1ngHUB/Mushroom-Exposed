@@ -1,9 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Wald-Palette: Papier/Karton als Grund, Waldgruen als Primaerfarbe, Moos als
+    Akzent. Die Ampel hat je Urteil drei Werte: eine kraeftige Marke fuer Badge
+    und Buttons, eine zarte Flaeche fuer Karten und eine dunkle Schriftvariante,
+    die auf der zarten Flaeche lesbar bleibt.
+-->
 <resources>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
+    <color name="paper">#FFFAF6EE</color>
+    <color name="paper_dim">#FFF0EADD</color>
+    <color name="card">#FFF2ECDF</color>
+    <color name="line">#FFD9D2C4</color>
+
+    <color name="ink">#FF1E241C</color>
+    <color name="ink2">#FF4A5344</color>
+    <color name="ink3">#FF6B7264</color>
+
+    <color name="forest">#FF2F5D3A</color>
+    <color name="forest_dark">#FF24462C</color>
+    <color name="moss">#FF6B8F3A</color>
+
+    <!-- Schleier ueber der Kameravorschau: dunkel und trotzdem durchsichtig. -->
+    <color name="scrim">#A610170F</color>
+    <color name="scrim_strong">#CC10170F</color>
+
+    <color name="verdict_danger">#FFB3261E</color>
+    <color name="verdict_danger_tint">#FFFBE9E7</color>
+    <color name="verdict_danger_ink">#FF8F1D14</color>
+    <color name="verdict_caution">#FFA86400</color>
+    <color name="verdict_caution_tint">#FFFBF0DA</color>
+    <color name="verdict_caution_ink">#FF7A4A00</color>
+    <color name="verdict_safe">#FF2E7D32</color>
+    <color name="verdict_safe_tint">#FFE7F2E4</color>
+    <color name="verdict_safe_ink">#FF1F6B32</color>
+
+    <!-- Anruf-Flaechen im Notfallblock; beide tragen weisse Schrift. -->
+    <color name="call_poison">#FFC2311F</color>
+    <color name="call_emergency">#FF8F1D14</color>
+
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
 </resources>

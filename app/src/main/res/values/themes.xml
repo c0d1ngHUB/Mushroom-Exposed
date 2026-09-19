@@ -1,15 +1,22 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.MushroomExposed" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+    <!--
+        Helles Wald-Design. Bewusst Light und nicht DayNight: die Kamera-
+        vorschau ist ohnehin dunkel, und ein zweites Theme waere Aufwand ohne
+        Nutzen im Feld.
+    -->
+    <style name="Theme.MushroomExposed" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/forest</item>
+        <item name="colorPrimaryVariant">@color/forest_dark</item>
+        <item name="colorOnPrimary">@color/paper</item>
+        <item name="colorSecondary">@color/moss</item>
+        <item name="colorSecondaryVariant">@color/forest</item>
+        <item name="colorOnSecondary">@color/paper</item>
+        <item name="android:colorBackground">@color/paper</item>
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+        <item name="android:textColorSecondary">@color/ink2</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/forest_dark</item>
+        <item name="android:navigationBarColor" tools:targetApi="l">@color/paper</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
     </style>
 </resources>

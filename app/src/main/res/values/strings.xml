@@ -1,12 +1,13 @@
 <resources>
     <string name="app_name">Mushroom Exposed</string>
 
-    <string name="ready">Bereit — %1$d Arten. Pilz in den Rahmen, dann „Analysieren“.</string>
+    <string name="status_ready">Bereit — %1$d Arten</string>
+    <string name="lookalikes_loaded">%1$d Verwechslungswarnungen geladen</string>
+    <string name="lookalikes_missing">Keine Verwechslungsdaten geladen — Vorsicht</string>
+
     <string name="analysing">Analysiere …</string>
     <string name="new_capture">Neu</string>
     <string name="frozen_frame">Aufgenommenes Pilzbild</string>
-    <string name="lookalike_count">%1$d Verwechslungswarnungen geladen.</string>
-    <string name="no_lookalikes">Keine Verwechslungsdaten geladen — Vorsicht.</string>
 
     <string name="model_failed">Modell konnte nicht geladen werden: %1$s</string>
     <string name="model_missing">Modell fehlt — Analyse nicht möglich.</string>
@@ -15,11 +16,34 @@
     <string name="camera_failed">Kamera-Start fehlgeschlagen: %1$s</string>
     <string name="permission_denied">Kamera-Berechtigung nicht erteilt.</string>
     <string name="no_torch">Dieses Gerät hat kein Licht.</string>
+    <string name="dial_failed">Keine Telefon-App auf diesem Gerät gefunden.</string>
 
     <string name="hint_dark">Mehr Licht</string>
     <string name="hint_bright">Zu hell — abschatten</string>
     <string name="hint_blurry">Näher heran / ruhig halten</string>
     <string name="hint_ok">Gut — auslösen</string>
+
+    <!-- Ampel-Marken ueber dem Artnamen. -->
+    <string name="badge_danger">GIFTIG</string>
+    <string name="badge_caution">ACHTUNG</string>
+    <string name="badge_safe">FREIGABE</string>
+
+    <string name="tops_label">Top-3</string>
+
+    <!-- Notfallblock: der Wortlaut von ResultFormatter.EMERGENCY_TEXT bleibt
+         die gepinnte Fassung, der Block zeigt dieselben Angaben als Knoepfe. -->
+    <string name="emergency_title">Bei Verdacht auf Pilzvergiftung</string>
+    <string name="emergency_poison_label">Vergiftungsinfo, 24 h</string>
+    <string name="emergency_emergency_label">Notruf</string>
+    <string name="emergency_note">Restpilz und Erbrochenes aufbewahren.</string>
+    <!-- Wortgleiche Quelle fuer Vorlesehilfen; ResultFormatter.EMERGENCY_TEXT
+         ist die gepinnte Fassung und muss identisch bleiben. -->
+    <string name="emergency_text">Bei Verdacht auf Pilzvergiftung: Vergiftungsinformationszentrale 01 406 43 43 (24 h) oder Notruf 144. Restpilz und Erbrochenes aufbewahren.</string>
+
+    <string name="cd_torch">Licht ein- oder ausschalten</string>
+    <string name="cd_shutter">Analysieren</string>
+    <string name="cd_history">Verlauf öffnen</string>
+    <string name="cd_call">%1$s anrufen</string>
 
     <string name="low_confidence_hint">Unsicher — anderes Bild versuchen.</string>
     <string name="history_empty">Noch keine Einträge.</string>

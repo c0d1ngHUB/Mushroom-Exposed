@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Feldmodus-Layout im Wald-Design.
+
+    Ebenen von unten nach oben: Kameravorschau, eingefrorenes Standbild,
+    Zielrahmen mit Qualitaetshinweis, Statuspille, Steuerleiste unten,
+    Ergebnis-Sheet (das die Steuerleiste in FROZEN verdeckt), schwebende Chips
+    fuer Neu/Verlauf, Verlaufstafel.
+
+    Alle Bedienelemente bleiben ueber fitsSystemWindows innerhalb der
+    Systemleisten; die IDs sind gegen die bestehenden Tests unveraendert.
+-->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -30,11 +41,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <View
+    <ImageView
         android:id="@+id/targetFrame"
-        android:layout_width="220dp"
-        android:layout_height="220dp"
-        android:background="@drawable/target_frame"
+        android:layout_width="@dimen/target_frame"
+        android:layout_height="@dimen/target_frame"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_target_corners"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -44,132 +56,169 @@
         android:id="@+id/qualityHint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:background="#88000000"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="6dp"
-        android:textColor="#FFFFFF"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_hint_pill"
+        android:gravity="center"
+        android:minHeight="@dimen/min_touch_target"
+        android:paddingHorizontal="18dp"
+        android:textColor="#FFFFFFFF"
         android:textSize="15sp"
+        android:textStyle="bold"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/targetFrame"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="Gut — auslösen" />
 
-    <TextView
-        android:id="@+id/resultHeadline"
+    <!-- Statuspille: Bereit, Verwechslungsdaten, Fehlermeldungen. -->
+    <LinearLayout
+        android:id="@+id/statusPill"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        android:background="#99000000"
-        android:padding="10dp"
-        android:textColor="#FFFFFF"
-        android:textSize="20sp"
-        android:textStyle="bold"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_hint_pill"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <TextView
-        android:id="@+id/resultSubline"
-        android:layout_width="0dp"
+        <TextView
+            android:id="@+id/resultHeadline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Bereit — 663 Arten" />
+
+        <TextView
+            android:id="@+id/statusDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:maxLines="2"
+            android:textColor="#CCE8E6DC"
+            android:textSize="11sp"
+            tools:text="663 Verwechslungswarnungen geladen" />
+    </LinearLayout>
+
+
+    <!-- Schwebende Chips, nur in FROZEN sichtbar, weil das Sheet die Leiste deckt. -->
+    <LinearLayout
+        android:id="@+id/frozenChips"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#99000000"
-        android:paddingHorizontal="10dp"
-        android:paddingBottom="6dp"
-        android:textColor="#DDDDDD"
-        android:textSize="13sp"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/resultHeadline"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginHorizontal="12dp" />
+        app:layout_constraintTop_toBottomOf="@id/statusPill"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <TextView
-        android:id="@+id/resultTops"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:background="#99000000"
-        android:padding="10dp"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/resultSubline"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        <TextView
+            android:id="@+id/historyChip"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/row_min_height"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_chip"
+            android:drawableStart="@drawable/ic_history"
+            android:drawablePadding="8dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:text="@string/history_open"
+            android:textColor="#FFFFFFFF"
+            android:textSize="13sp" />
 
-    <TextView
-        android:id="@+id/warningText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="8dp"
-        android:background="#AA000000"
-        android:padding="10dp"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/resultTops"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        <TextView
+            android:id="@+id/newChip"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/row_min_height"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_chip"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="20dp"
+            android:text="@string/new_capture"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/emergencyText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="6dp"
-        android:background="#B3B71C1C"
-        android:padding="10dp"
-        android:textColor="#FFFFFF"
-        android:textSize="13sp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/warningText"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
+    <!-- Steuerleiste im Live-Sucher: Licht, grosser Ausloeser, Verlauf. -->
     <LinearLayout
         android:id="@+id/controls"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="18dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
+        <FrameLayout
             android:id="@+id/torchButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/torch" />
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:background="@drawable/bg_round_control"
+            android:clickable="true"
+            android:contentDescription="@string/cd_torch"
+            android:focusable="true">
 
-        <Button
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_torch" />
+        </FrameLayout>
+
+        <FrameLayout
             android:id="@+id/shutterButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="8dp"
-            android:layout_weight="1"
-            android:text="@string/shutter" />
+            android:layout_width="@dimen/shutter_size"
+            android:layout_height="@dimen/shutter_size"
+            android:layout_gravity="center_vertical"
+            android:layout_marginHorizontal="14dp"
+            android:background="@drawable/bg_shutter"
+            android:clickable="true"
+            android:contentDescription="@string/cd_shutter"
+            android:focusable="true" />
 
-        <Button
+        <FrameLayout
             android:id="@+id/historyButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/history_open" />
+            android:layout_width="@dimen/control_size"
+            android:layout_height="@dimen/control_size"
+            android:background="@drawable/bg_round_control"
+            android:clickable="true"
+            android:contentDescription="@string/cd_history"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_history" />
+        </FrameLayout>
     </LinearLayout>
 
+    <!-- Ergebnis-Sheet. Die Hoehe folgt dem Inhalt, gedeckelt durch die
+         Papierflaeche in drawable/bg_sheet.xml bzw. maxHeight. -->
     <ScrollView
-        android:id="@+id/historyPanel"
+        android:id="@+id/resultSheet"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="#FF000000"
-        android:padding="12dp"
-        android:paddingTop="48dp"
+        android:background="@drawable/bg_sheet"
+        android:fillViewport="true"
+        android:paddingHorizontal="@dimen/sheet_pad"
+        android:paddingTop="14dp"
+        android:paddingBottom="16dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHeight_max="@dimen/sheet_max_height"
+        app:layout_constraintHeight_default="wrap"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -179,33 +228,226 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <View
+                android:id="@+id/sheetGrabber"
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="14dp"
+                android:background="@color/line" />
+
             <TextView
+                android:id="@+id/resultBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_badge"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="5dp"
+                android:textAllCaps="true"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                tools:text="GIFTIG" />
+
+            <TextView
+                android:id="@+id/resultName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/history_title"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:layout_marginTop="10dp"
+                android:fontFamily="serif"
+                android:textColor="@color/ink"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                tools:text="Stadt-Champignon" />
+
+            <TextView
+                android:id="@+id/resultSubline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/ink2"
+                android:textSize="13sp"
+                tools:text="Agaricus bitorquis · 73 %" />
+
+            <TextView
+                android:id="@+id/warningText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_card"
+                android:padding="12dp"
+                android:textColor="@color/ink"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:text="Vorsicht: In den Top-3 steht Amanita phalloides — tödlich giftig." />
+
+            <TextView
+                android:id="@+id/topsLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/tops_label"
+                android:textAllCaps="true"
+                android:textColor="@color/ink3"
+                android:textSize="11sp"
                 android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/resultTops"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- Notfallblock: bleibt am unteren Rand des Sheets stehen. -->
+            <LinearLayout
+                android:id="@+id/emergencyBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="14dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/emergencyTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/emergency_title"
+                    android:textColor="@color/verdict_danger_ink"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:id="@+id/callPoisonButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/emergency_button_height"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_call_button"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/callPoisonNumber"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="16sp"
+                            tools:text="01 406 43 43" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/emergency_poison_label"
+                            android:textColor="#FFF3EAE8"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/callEmergencyButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/emergency_button_height"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_call_button"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/callEmergencyNumber"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:textColor="#FFFFFFFF"
+                            android:textSize="16sp"
+                            tools:text="144" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/emergency_emergency_label"
+                            android:textColor="#FFF3EAE8"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/emergencyNote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/emergency_note"
+                    android:textColor="@color/ink2"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Verlaufstafel im selben Papier-Look. -->
+    <LinearLayout
+        android:id="@+id/historyPanel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/paper"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/sheet_pad"
+        android:paddingVertical="16dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="serif"
+            android:text="@string/history_title"
+            android:textColor="@color/ink"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:id="@+id/historyScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="12dp"
+            android:layout_weight="1">
 
             <LinearLayout
                 android:id="@+id/historyList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
+        </ScrollView>
 
-            <Button
-                android:id="@+id/clearHistoryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/history_clear" />
+        <Button
+            android:id="@+id/clearHistoryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="@color/verdict_danger"
+            android:text="@string/history_clear"
+            android:textColor="#FFFFFFFF" />
 
-            <Button
-                android:id="@+id/closeHistoryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/history_close" />
-        </LinearLayout>
-    </ScrollView>
+        <Button
+            android:id="@+id/closeHistoryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/forest"
+            android:text="@string/history_close"
+            android:textColor="#FFFFFFFF" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
