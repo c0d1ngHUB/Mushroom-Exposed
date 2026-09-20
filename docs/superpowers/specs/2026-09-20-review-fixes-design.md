@@ -34,8 +34,23 @@ Qualitätshinweis und Statusbereich überschnitten sich, die Top-3 wurde
 abgeschnitten, der Notfallblock erschien erst nach manuellem Scrollen.
 
 Entscheidung: **Portrait-Lock** im Manifest, wie im Review als kurzfristige
-Option genannt. Ein eigenes Landscape-Layout bleibt offen und ist nicht Teil
-dieser Änderung; die Sperre verhindert nur den unsicheren Zustand.
+Option genannt. Die Sperre verhindert den unsicheren Zustand vollständig.
+
+**Abschliessend entschieden (2026-09-20):** Ein dediziertes Landscape-Layout
+wird **nicht gebaut**. Das Gerät wird ausschliesslich hochkant verwendet, und
+Pilze werden hochkant fotografiert; der 88-dp-Auslöser sitzt dort mittig unten,
+wo der Daumen liegt. Zwei Layouts würden dauerhaft synchron gehalten werden
+müssen — genau die Art Drift, die dieser Review aufgedeckt hat.
+
+Zur Vollständigkeit, falls die Entscheidung je revidiert wird: Landscape hat auf
+dem Referenzgerät 800 × 360 dp, abzüglich Systemleisten 276 dp nutzbar. Das
+Ergebnis-Sheet braucht 494 dp, davon 180 dp Notfallblock (36 %). Ein
+„gestrecktes Portrait" kann die 218 dp Überlauf prinzipiell nicht lösen; die
+tragfähige Variante wäre eine **rechte Seitentafel** (~380 dp breit) mit
+**horizontalem Notfallblock** (zwei Nummern nebeneinander: ~100 dp statt
+180 dp) und fest gepinnter Notfallaktion. Der Aufwand ist gering
+(`layout-land/`, `values-land/dimens.xml`, eine Manifest-Zeile), die
+Folgekosten sind es nicht.
 
 ### 3 (Medium) Auslöser 73 dp links der Bildschirmmitte
 

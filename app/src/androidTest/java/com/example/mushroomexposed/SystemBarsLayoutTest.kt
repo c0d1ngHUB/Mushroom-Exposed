@@ -208,18 +208,23 @@ class SystemBarsLayoutTest {
     }
 
     /**
-     * Das Querformat ist gesperrt. Geprueft wird die angeforderte Ausrichtung,
-     * nicht die zufaellig vorliegende: auf einem hochkant gehaltenen Geraet
-     * waere die Laufzeitausrichtung auch ohne Sperre portrait, der Test also
-     * wertlos. `requestedOrientation` faellt genau dann, wenn die
-     * Manifest-Sperre entfernt wird.
+     * Das Querformat ist gesperrt — endgueltig, nicht uebergangsweise: das
+     * Geraet wird nur hochkant verwendet und es wird kein zweites Layout
+     * gepflegt (Entscheidung 2026-09-20, siehe
+     * docs/superpowers/specs/2026-09-20-review-fixes-design.md).
+     *
+     * Geprueft wird die angeforderte Ausrichtung, nicht die zufaellig
+     * vorliegende: auf einem hochkant gehaltenen Geraet waere die
+     * Laufzeitausrichtung auch ohne Sperre portrait, der Test also wertlos.
+     * `requestedOrientation` faellt genau dann, wenn die Manifest-Sperre
+     * entfernt wird.
      */
     @Test
-    fun theActivityRequestsPortraitOnly() {
+    fun theActivityIsLockedToPortrait() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 assertEquals(
-                    "the activity must request portrait until a landscape layout exists",
+                    "the activity is portrait-only by decision; a landscape layout is not maintained",
                     android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
                     activity.requestedOrientation,
                 )
