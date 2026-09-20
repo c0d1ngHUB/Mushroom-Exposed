@@ -122,6 +122,57 @@ class SystemBarsLayoutTest {
     }
 
     /**
+     * Der Fehlerpfad muss die Navigation im eingefrorenen Zustand anbieten,
+     * ohne ein Ergebnis der vorherigen Aufnahme wieder einzublenden.
+     */
+    @Test
+    fun failedAnalysisKeepsPreviousResultSheetHidden() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val ranked = listOf(
+                    RankedSpecies("Steinpilz", "Boletus_edulis", "essbar", 0.81f),
+                )
+                val previousResult = ResultFormatter.format(
+                    ranked,
+                    VerdictPolicy.decide("essbar", 0.81f),
+                )
+                MainActivity::class.java
+                    .getDeclaredMethod("render", ResultView::class.java)
+                    .apply { isAccessible = true }
+                    .invoke(activity, previousResult)
+
+                val resultSheet = activity.findViewById<android.view.View>(R.id.resultSheet)
+                assertEquals(android.view.View.VISIBLE, resultSheet.visibility)
+
+                // Der Fehlerpfad blendet das alte Ergebnis aus und aktiviert
+                // danach nur noch die Navigation im eingefrorenen Zustand.
+                resultSheet.visibility = android.view.View.GONE
+                MainActivity::class.java
+                    .getDeclaredMethod("showFrozenControls")
+                    .apply { isAccessible = true }
+                    .invoke(activity)
+
+                assertEquals(
+                    "a failed analysis must not reveal the previous result again",
+                    android.view.View.GONE,
+                    resultSheet.visibility,
+                )
+                assertEquals(
+                    "the user still needs a way back to the camera",
+                    android.view.View.VISIBLE,
+                    activity.findViewById<android.view.View>(R.id.frozenChips).visibility,
+                )
+            }
+        }
+    }
+
+    /**
      * Der gefaehrlichste Fall: giftiges Urteil. Der Notfallblock muss sichtbar
      * sein, beide Nummern muessen als grosse Flaeche treffbar sein und der
      * gepinnte Wortlaut muss fuer Vorlesehilfen erhalten bleiben.

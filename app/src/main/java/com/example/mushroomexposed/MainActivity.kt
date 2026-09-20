@@ -362,10 +362,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showFrozenControls() {
-        // Das Ergebnis-Sheet deckt die Steuerleiste; Neu und Verlauf werden zu
-        // schwebenden Chips ueber dem sichtbaren Rest des Standbilds.
+        // Das Ergebnis-Sheet wurde nur im Erfolgsfall bereits von render()
+        // eingeblendet. Bei einem Analysefehler muss es verborgen bleiben.
         binding.controls.visibility = View.GONE
-        binding.resultSheet.visibility = View.VISIBLE
         binding.frozenChips.visibility = View.VISIBLE
         binding.shutterButton.isEnabled = true
         binding.shutterButton.alpha = 1f
