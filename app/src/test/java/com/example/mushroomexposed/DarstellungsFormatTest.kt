@@ -97,4 +97,46 @@ class DarstellungsFormatTest {
     fun `an unparsable timestamp falls through instead of vanishing`() {
         assertEquals("kaputt", ResultFormatter.displayTimestamp("kaputt"))
     }
+
+    /**
+     * Der Report verlangt EIN erklaertes Warnzeichen statt zweier
+     * unerklaerter. Die Verlaufszeile traegt deshalb nur die Toxizitaetsmarke;
+     * das Verwechslungsrisiko steht als ausgeschriebenes Wort dabei.
+     */
+    @Test
+    fun `a history row carries one explained warning, not two raw symbols`() {
+        val entry = HistoryEntry(
+            timestamp = "2026-09-20T09:04:06",
+            scientific = "Boletus_edulis",
+            german = "Steinpilz",
+            confidence = 0.71f,
+            verdict = "danger",
+            lookalike = true,
+        )
+
+        val row = ResultFormatter.historyRow(entry)
+
+        assertEquals("20.09.2026, 09:04", row.timestamp)
+        assertEquals("Steinpilz", row.species)
+        assertEquals("☠ giftig · 71 %", row.verdict)
+        assertEquals("Verwechslungsrisiko", row.note)
+        assertFalse("the raw ⚠ must be gone", row.verdict.contains("⚠"))
+    }
+
+    @Test
+    fun `a history row without a lookalike has no note`() {
+        val entry = HistoryEntry(
+            timestamp = "2026-09-20T09:04:06",
+            scientific = "Boletus_edulis",
+            german = "Steinpilz",
+            confidence = 0.71f,
+            verdict = "safe",
+            lookalike = false,
+        )
+
+        val row = ResultFormatter.historyRow(entry)
+
+        assertEquals("", row.note)
+        assertEquals("essbar · 71 %", row.verdict)
+    }
 }

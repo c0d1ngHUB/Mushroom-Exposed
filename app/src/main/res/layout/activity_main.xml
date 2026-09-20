@@ -436,21 +436,26 @@
         </ScrollView>
 
         <Button
-            android:id="@+id/clearHistoryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:backgroundTint="@color/verdict_danger"
-            android:text="@string/history_clear"
-            android:textColor="#FFFFFFFF" />
-
-        <Button
             android:id="@+id/closeHistoryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
             android:backgroundTint="@color/forest"
             android:text="@string/history_close"
             android:textColor="#FFFFFFFF" />
+
+        <!-- Die zerstoererische Aktion ist der Rueckkehr untergeordnet: kein
+             Vollbreiten-Knopf in Gefahrfarbe, sondern ein Textknopf darunter.
+             Der Review ruegte zwei gleich gewichtige Knoepfe. -->
+        <Button
+            android:id="@+id/clearHistoryButton"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:text="@string/history_clear"
+            android:textColor="@color/verdict_danger_ink" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

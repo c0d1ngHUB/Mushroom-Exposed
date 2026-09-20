@@ -54,16 +54,41 @@ Entscheidung: Der Knopf folgt dem Zustand (`isEnabled` aus, 50 % Deckkraft bei
 leerem Verlauf). Gelöscht wird erst nach einem `AlertDialog` mit Abbrechen als
 Standardantwort — Löschen ist unwiderruflich.
 
+**Nachtrag (Vollreport):** Die Vollfassung verlangt zusätzlich, dass die
+zerstörerische Aktion der normalen Rückkehr *optisch untergeordnet* ist. Der
+Vollreport nannte zwei gleich gewichtige Vollbreiten-Knöpfe. `Löschen` ist
+deshalb jetzt ein randloser Textknopf unter dem primären
+`Zurück zur Kamera` und trägt nur die dunkle Gefahrfarbe als Text.
+
 ### 5 (Low) Maschinenformatierung
 
 `Cantharellus_cibarius` statt `Cantharellus cibarius`, ISO-Zeitstempel statt
 lokalem Datum, eine dichte Verlaufszeile mit redundanten `!`/`⚠`-Signalen.
 
 Entscheidung: `displayName()` ersetzt den Unterstrich, `displayTimestamp()`
-lokalisiert auf `dd.MM.yyyy, HH:mm`, die Verlaufszeile trägt nur noch `☠` plus
-Warnflag und ihre Farbe ist für essbar neutral. **Das Speicherformat bleibt
-unverändert** — `history.jsonl` behält den maschinenlesbaren Stempel, nur die
-Anzeige übersetzt ihn. Ein unlesbarer Alt-Wert fällt unverändert durch.
+lokalisiert auf `dd.MM.yyyy, HH:mm`. **Das Speicherformat bleibt unverändert** —
+`history.jsonl` behält den maschinenlesbaren Stempel, nur die Anzeige übersetzt
+ihn. Ein unlesbarer Alt-Wert fällt unverändert durch.
+
+**Nachtrag (Vollreport):** Die Vollfassung fordert drei Dinge mehr, die in der
+ersten Runde fehlten.
+
+- **Struktur statt einer dichten Zeile:** `ResultFormatter.historyRow()` zerlegt
+  einen Eintrag in Art, Urteil und Datum. Die Anzeige setzt daraus drei Zeilen:
+  Art kursiv, Urteil mit Zeichen und Wort, darunter ruhig Datum und Hinweis.
+- **Kursivsatz:** Artnamen in Unterzeile und Verlauf sind kursiv gesetzt — ein
+  Fachname, keine Überschrift.
+- **Ein erklärtes Warnzeichen:** Vorher standen `☠` **und** `⚠` nebeneinander,
+  beide unerklärt. Jetzt trägt nur das Urteil ein Zeichen; das
+  Verwechslungsrisiko steht als Wort `Verwechslungsrisiko` in der Metazeile.
+
+### Ergänzung: Warnpalette bei Verwechslungsrisiko (Finding 1)
+
+Die Vollfassung verlangt, dass ein Ergebnis mit gefährlicher
+Verwechslungswarnung in der Warnpalette bleibt. Das war bereits durch
+`VerdictPolicy.decide()` abgesichert (drops to `CAUTION`) und ist jetzt
+zusätzlich gepinnt: `DarstellungsFormatTest` prüft, dass kein essbarer Treffer
+im Achtung-Zustand ein Haken-Zeichen trägt.
 
 ## Tests
 
@@ -84,6 +109,14 @@ Jeder neue Test wurde **gegen den alten Zustand geprüft** und schlägt dort feh
 Der Portrait-Test prüft `requestedOrientation`, nicht die zufällig vorliegende
 `Configuration.orientation`: auf einem hochkant gehaltenen Gerät wäre die
 Laufzeitausrichtung auch ohne Sperre portrait, der Test also wertlos.
+
+## Testfenster statt fester Länge
+
+`BedienungTest.blockOf()` liest ein Element bis zu seinem `/>`, nicht bis zu
+einer festen Zeichenzahl. Ein festes Fenster griff Attribute des
+Nachbarelements ab: der Test war damit grün, obwohl das geprüfte Attribut gar
+nicht mehr im Ausschnitt lag. Beim Gegenbeweis fiel das auf, weil Gradle die
+Test-Task ohne `--rerun-tasks` als aktuell ansah und das Grün nichts bedeutete.
 
 ## Betroffene Dateien
 

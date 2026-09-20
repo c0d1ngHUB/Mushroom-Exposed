@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.util.Size
 import android.view.MotionEvent
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -307,6 +308,11 @@ class MainActivity : AppCompatActivity() {
         binding.resultName.text = view.name
         binding.resultSubline.text = view.subline
         binding.resultSubline.visibility = if (view.subline.isBlank()) View.GONE else View.VISIBLE
+        // Der Artname in der Unterzeile ist ein Fachname und wird kursiv gesetzt.
+        binding.resultSubline.typeface = android.graphics.Typeface.create(
+            android.graphics.Typeface.SERIF,
+            android.graphics.Typeface.ITALIC,
+        )
 
         binding.warningText.text = view.warning
         binding.warningText.visibility = if (view.warning.isBlank()) View.GONE else View.VISIBLE
@@ -455,26 +461,65 @@ class MainActivity : AppCompatActivity() {
         }
         // Eine Einschaetzung bekommt kein Haken-Symbol, nur eine giftige Warnung
         // eines. Die Ampel sitzt in der Schriftfarbe, nicht in einem Zeichen.
-        val toneMark = mapOf(
-            "danger" to "☠",
-            "caution" to "·",
-            "safe" to "·",
-        )
         for (entry in entries) {
-            val mark = toneMark[entry.verdict] ?: "·"
-            val percent = ResultFormatter.percent(entry.confidence)
-            val warning = if (entry.lookalike) " ⚠" else ""
+            val row = ResultFormatter.historyRow(entry)
             val tone = when (entry.verdict) {
                 "danger" -> VerdictTone.DANGER
                 "caution" -> VerdictTone.CAUTION
                 "safe" -> VerdictTone.SAFE
                 else -> null
             }
-            // Lokales Datum statt Maschinenstempel, lesbarer Artname ohne
-            // Unterstrich. Die Signale stecken schon in Marke und Warnzeichen.
-            val shown = ResultFormatter.displayTimestamp(entry.timestamp)
-            list.addView(label("$mark  $shown  ${entry.german} — $percent$warning", tone))
+            list.addView(historyEntryView(row, tone))
         }
+    }
+
+    /**
+     * Eine Verlaufszeile: Art als Ueberschrift, Urteil und lokales Datum als
+     * ruhige zweite Zeile. Die Verwechslungswarnung wird benannt, nicht mit
+     * einem zweiten Zeichen angedeutet.
+     */
+    private fun historyEntryView(
+        row: ResultFormatter.HistoryRow,
+        tone: VerdictTone?,
+    ): android.view.View {
+        val block = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 14, 0, 14)
+        }
+        val species = TextView(this).apply {
+            text = row.species
+            textSize = 15f
+            setTextColor(color(R.color.ink))
+            // Der Artname wird kursiv gesetzt — er ist ein Fachname, keine
+            // Ueberschrift (Review: "Cantharellus cibarius in italics").
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.SERIF,
+                android.graphics.Typeface.ITALIC,
+            )
+        }
+        val detail = TextView(this).apply {
+            text = row.verdict
+            textSize = 12f
+            setTextColor(
+                when (tone) {
+                    VerdictTone.DANGER -> color(R.color.verdict_danger)
+                    VerdictTone.CAUTION -> color(R.color.verdict_caution)
+                    // Neutral, nicht gruen: die Zeile behauptet keine Freigabe.
+                    VerdictTone.SAFE -> color(R.color.verdict_neutral_ink)
+                    null -> color(R.color.ink2)
+                }
+            )
+        }
+        val meta = TextView(this).apply {
+            val parts = listOf(row.timestamp, row.note).filter { it.isNotBlank() }
+            text = parts.joinToString(" · ")
+            textSize = 11f
+            setTextColor(color(R.color.ink3))
+        }
+        block.addView(species)
+        block.addView(detail)
+        if (meta.text.isNotBlank()) block.addView(meta)
+        return block
     }
 
     private fun label(text: String, tone: VerdictTone? = null): TextView = TextView(this).apply {

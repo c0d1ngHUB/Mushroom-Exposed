@@ -22,7 +22,10 @@ class BedienungTest {
     private fun blockOf(id: String, span: Int = 900): String {
         val at = layout.indexOf("android:id=\"@+id/$id\"")
         if (at < 0) return ""
-        return layout.substring(maxOf(0, at - 200), minOf(layout.length, at + span))
+        // Bis zum Ende des Elements, nicht ein festes Fenster: sonst greift der
+        // Ausschnitt Attribute des Nachbar-Elements ab und der Test wird blind.
+        val end = layout.indexOf("/>", at).let { if (it < 0) at + span else it + 2 }
+        return layout.substring(at, minOf(layout.length, end))
     }
 
     @Test
@@ -72,6 +75,31 @@ class BedienungTest {
         assertTrue(
             "the clear button must be switched off when there is nothing to delete",
             "clearHistoryButton.isEnabled" in main,
+        )
+    }
+
+    /**
+     * Der Report verlangt ausdruecklich, dass die zerstoererische Aktion der
+     * normalen Rueckkehr optisch untergeordnet wird. Zwei gleich gewichtige
+     * Vollbreiten-Knoepfe sind genau der geruegte Zustand.
+     */
+    @Test
+    fun `the destructive clear is visually subordinate to the return action`() {
+        val clear = blockOf("clearHistoryButton")
+        val close = blockOf("closeHistoryButton")
+
+        assertTrue("both history actions must exist", clear.isNotEmpty() && close.isNotEmpty())
+        assertTrue(
+            "the destructive action must not be a full-width button like the return action",
+            "layout_width=\"match_parent\"" !in clear,
+        )
+        assertTrue(
+            "the return action stays the primary full-width button",
+            "layout_width=\"match_parent\"" in close,
+        )
+        assertTrue(
+            "the destructive action must be text-styled, not a filled danger button",
+            "borderlessButtonStyle" in clear || "textButtonStyle" in clear,
         )
     }
 }

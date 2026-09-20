@@ -105,6 +105,44 @@ object ResultFormatter {
         else -> ""
     }
 
+    /** Deutsches Urteilswort zur internen Stufe des Verlaufs. */
+    fun verdictWord(verdict: String): String = when (verdict) {
+        "danger" -> "giftig"
+        "safe" -> "essbar"
+        "caution" -> "achtung"
+        else -> "unbewertet"
+    }
+
+    /**
+     * Eine Verlaufszeile, in ihre drei lesbaren Teile zerlegt.
+     *
+     * Der Review ruegte eine dichte Zeile mit zwei unerklaerten Symbolen. Hier
+     * steht je Zeile: Art, ein Urteil mit **einem** Zeichen und ausgeschriebenem
+     * Wort, und das lokale Datum. Das Verwechslungsrisiko wird benannt statt mit
+     * einem zweiten Zeichen angedeutet.
+     */
+    data class HistoryRow(
+        val species: String,
+        val verdict: String,
+        val timestamp: String,
+        val note: String,
+    )
+
+    fun historyRow(entry: HistoryEntry): HistoryRow {
+        // Die gespeicherte Stufe ist "danger"/"caution"/"safe"; erst das
+        // Urteilswort traegt die Marke. Ein Haken entsteht so nicht.
+        val word = verdictWord(entry.verdict)
+        val mark = markOf(if (entry.verdict == "danger") "giftig" else entry.verdict)
+        return HistoryRow(
+            species = entry.german.ifBlank { displayName(entry.scientific) },
+            verdict = listOf(mark, word, "·", percent(entry.confidence))
+                .filter { it.isNotBlank() }
+                .joinToString(" "),
+            timestamp = displayTimestamp(entry.timestamp),
+            note = if (entry.lookalike) "Verwechslungsrisiko" else "",
+        )
+    }
+
     fun format(ranked: List<RankedSpecies>, decision: VerdictDecision): ResultView {
         val best = ranked.firstOrNull()
         val tops = ranked.mapIndexed { index, species ->
