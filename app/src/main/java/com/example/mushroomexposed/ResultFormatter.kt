@@ -61,19 +61,52 @@ object ResultFormatter {
         EmergencyContact(EMERGENCY_NUMBER, "Notruf"),
     )
 
-    /** "71 %" from 0.71; below one percent one decimal ("0.8 %") so rare hits stay readable. */
+    /** "71 %" von 0.71; unter einem Prozent eine Nachkommastelle ("0,8 %"), damit seltene Treffer lesbar bleiben. */
     fun percent(probability: Float): String {
         val p = probability * 100
         return if (p >= 1.0) "${p.toInt()} %" else String.format(Locale.GERMANY, "%.1f %%", p)
     }
 
+    /**
+     * `Cantharellus_cibarius` -> `Cantharellus cibarius`.
+     *
+     * Der Unterstrich ist ein Dateiname, kein Artname; in der Oberflaeche hat er
+     * nichts zu suchen.
+     */
+    fun displayName(scientific: String): String = scientific.replace('_', ' ')
+
+    /**
+     * `2026-09-20T09:04:06` -> `20.09.2026, 09:04`.
+     *
+     * Der Verlauf speichert weiter einen maschinenlesbaren Zeitstempel; nur die
+     * Anzeige lokalisiert ihn. Ein unlesbarer Wert faellt unveraendert durch,
+     * damit ein alter Eintrag nie verschwindet.
+     */
+    fun displayTimestamp(raw: String): String {
+        return try {
+            DISPLAY_TIMESTAMP.format(STORED_TIMESTAMP.parse(raw) ?: return raw)
+        } catch (e: java.text.ParseException) {
+            raw
+        }
+    }
+
+    private val STORED_TIMESTAMP = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.GERMANY)
+    private val DISPLAY_TIMESTAMP = java.text.SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.GERMANY)
+
+    /**
+     * Marke einer Trefferzeile.
+     *
+     * Nur die giftige Art bekommt ein Zeichen. Eine essbare Einschaetzung bleibt
+     * neutral: ein Haken wuerde wie eine Freigabe wirken, und genau die gibt
+     * dieses Modell nicht (60 %-Schwelle, giftige Arten in den Top-3).
+     */
+    fun markOf(verdict: String): String = when (verdict) {
+        "giftig" -> "☠"
+        else -> ""
+    }
+
     fun format(ranked: List<RankedSpecies>, decision: VerdictDecision): ResultView {
         val best = ranked.firstOrNull()
-        fun markOf(verdict: String): String = when (verdict) {
-            "giftig" -> "☠"
-            "essbar" -> "✓"
-            else -> ""
-        }
         val tops = ranked.mapIndexed { index, species ->
             TopRow(
                 rank = index + 1,
@@ -87,7 +120,7 @@ object ResultFormatter {
         }
         return ResultView(
             headline = if (best == null) decision.headline else "${decision.headline} — ${best.germanName}",
-            subline = if (best == null) "" else "${best.scientific} · ${percent(best.probability)}",
+            subline = if (best == null) "" else "${displayName(best.scientific)} · ${percent(best.probability)}",
             tone = decision.tone,
             topLines = topLines,
             warning = decision.warning,
@@ -108,4 +141,3 @@ fun emergencyTextFromParts(): String =
     "${ResultFormatter.EMERGENCY_TITLE}: Vergiftungsinformationszentrale " +
         "${ResultFormatter.POISON_CONTROL_NUMBER} (24 h) oder Notruf " +
         "${ResultFormatter.EMERGENCY_NUMBER}. ${ResultFormatter.EMERGENCY_NOTE}"
-

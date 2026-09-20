@@ -13,6 +13,11 @@ An Android app for automatic mushroom identification via video using CameraX and
   raised from 40 % to 60 % on 2026-09-19, after measuring on the frozen GBIF set
   that 40 % released 27 poisonous images as edible across four models — 60 %
   cuts that to 19 while keeping 83–93 % of the correct releases.
+- An "essbar" result is presented as a **model estimate, not a clearance**: the
+  badge reads *Modellschätzung*, the surface stays neutral (no green, no ✓) and
+  only a poisonous hit carries a mark. Green once read as *FREIGABE* next to a
+  warning about the deadly death cap — a contradiction the review of 2026-09-20
+  flagged. Neutral keeps the estimate visible without implying permission.
 - Toxic-release guards on the verdict card (measured 2026-09-19). A shortlist
   containing a poisonous species, or a warning genus (`Amanita`, `Clitocybe` —
   derived at runtime as genera with ≥2 poisonous and no edible member), drops an
@@ -22,7 +27,7 @@ An Android app for automatic mushroom identification via video using CameraX and
 - Lookalike warnings: when the species found has a dangerous doppelgänger
   (Knollenblätterpilz, Pantherpilz, Gifthäubling, …), the verdict card drops to a
   caution tone and names the species to compare against
-- Emergency block on every non-green result: Vergiftungsinformationszentrale
+- Emergency block on every result that is not an edible estimate: Vergiftungsinformationszentrale
   **01 406 43 43** (24 h) and Notruf **144**, plus "Restpilz und Erbrochenes aufbewahren"
 - Local history (time, species, confidence, tone) in `files/history/history.jsonl`,
   capped at 200 entries, **no photos stored**, clearable from the UI

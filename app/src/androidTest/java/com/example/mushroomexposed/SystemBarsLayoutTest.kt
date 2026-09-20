@@ -9,6 +9,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -167,6 +169,163 @@ class SystemBarsLayoutTest {
                     "the user still needs a way back to the camera",
                     android.view.View.VISIBLE,
                     activity.findViewById<android.view.View>(R.id.frozenChips).visibility,
+                )
+            }
+        }
+    }
+
+    /**
+     * Der Ausloeser muss auf der Bildschirmmitte sitzen. Der Review-Befund war
+     * 73 dp links daneben, weil die Gruppe links klebte und rechts Flaeche leer
+     * blieb. Diese Messung ist die Zusicherung, nicht die XML-Form.
+     */
+    @Test
+    fun shutterIsCentredOnTheScreen() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.shutterButton)).check { shutter, error ->
+                if (error != null) throw error
+
+                val location = IntArray(2)
+                shutter.getLocationOnScreen(location)
+                val shutterCenter = location[0] + shutter.width / 2
+                val screenCenter = shutter.resources.displayMetrics.widthPixels / 2
+                val density = shutter.resources.displayMetrics.density
+
+                assertTrue(
+                    "the shutter centre ${shutterCenter}px must sit on the screen centre " +
+                        "${screenCenter}px, off by ${kotlin.math.abs(shutterCenter - screenCenter)}px " +
+                        "(${kotlin.math.abs(shutterCenter - screenCenter) / density}dp)",
+                    kotlin.math.abs(shutterCenter - screenCenter) <= 4 * density,
+                )
+            }
+        }
+    }
+
+    /**
+     * Das Querformat ist gesperrt. Geprueft wird die angeforderte Ausrichtung,
+     * nicht die zufaellig vorliegende: auf einem hochkant gehaltenen Geraet
+     * waere die Laufzeitausrichtung auch ohne Sperre portrait, der Test also
+     * wertlos. `requestedOrientation` faellt genau dann, wenn die
+     * Manifest-Sperre entfernt wird.
+     */
+    @Test
+    fun theActivityRequestsPortraitOnly() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(
+                    "the activity must request portrait until a landscape layout exists",
+                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                    activity.requestedOrientation,
+                )
+            }
+        }
+    }
+
+    /**
+     * Finding 1 am laufenden UI: nach einem essbaren Urteil darf die Marke
+     * nicht "FREIGABE" heissen und die Flaeche nicht in Freigabegruen stehen.
+     * Ein Textvergleich allein wuerde eine gruene Flaeche nicht bemerken.
+     */
+    @Test
+    fun anEdibleVerdictIsNeverPaintedAsAClearance() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val ranked = listOf(
+                    RankedSpecies("Steinpilz", "Boletus_edulis", "essbar", 0.71f),
+                )
+                val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
+                MainActivity::class.java
+                    .getDeclaredMethod("render", ResultView::class.java)
+                    .apply { isAccessible = true }
+                    .invoke(activity, view)
+
+                val badge = activity.findViewById<android.widget.TextView>(R.id.resultBadge)
+                assertFalse(
+                    "the edible badge must not claim a release, was '${badge.text}'",
+                    badge.text.toString().contains("FREIGABE", ignoreCase = true),
+                )
+
+                // Die Flaeche darf nicht die Freigabefarbe tragen. Geprueft wird
+                // die tatsaechlich gesetzte Fuellung, nicht die Absicht im Code.
+                val fill = (badge.background as? android.graphics.drawable.GradientDrawable)
+                    ?.color?.defaultColor
+                val safeGreen = androidx.core.content.ContextCompat.getColor(
+                    activity, R.color.verdict_safe,
+                )
+                assertNotEquals(
+                    "an edible estimate must not be painted in the clearance green",
+                    safeGreen,
+                    fill,
+                )
+            }
+        }
+    }
+
+    /**
+     * Finding 4 am laufenden UI: ohne Eintraege ist der Loeschknopf aus, mit
+     * Eintraegen an. Zusaetzlich verlangt der Test die Rueckfrage vor dem
+     * Loeschen — der Knopf allein darf nichts entfernen.
+     */
+    @Test
+    fun theClearButtonFollowsTheHistoryState() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val store = HistoryStore(java.io.File(activity.filesDir, "history"))
+                store.clear()
+
+                MainActivity::class.java
+                    .getDeclaredMethod("showHistory")
+                    .apply { isAccessible = true }
+                    .invoke(activity)
+
+                val clear = activity.findViewById<android.view.View>(R.id.clearHistoryButton)
+                assertFalse(
+                    "with an empty history the clear button must be off",
+                    clear.isEnabled,
+                )
+
+                store.append(
+                    HistoryEntry(
+                        timestamp = "2026-09-20T09:04:06",
+                        scientific = "Cantharellus_cibarius",
+                        german = "Pfifferling",
+                        confidence = 0.71f,
+                        verdict = "safe",
+                        lookalike = false,
+                    ),
+                )
+                MainActivity::class.java
+                    .getDeclaredMethod("renderHistory")
+                    .apply { isAccessible = true }
+                    .invoke(activity)
+
+                assertTrue(
+                    "with entries the clear button must be available",
+                    clear.isEnabled,
+                )
+
+                // Der Verlauf ist noch da: Loeschen passiert erst nach Rueckfrage.
+                assertTrue(
+                    "opening the history must not delete anything",
+                    store.readNewestFirst().isNotEmpty(),
                 )
             }
         }

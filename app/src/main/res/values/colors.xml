@@ -32,6 +32,16 @@
     <color name="verdict_safe">#FF2E7D32</color>
     <color name="verdict_safe_tint">#FFE7F2E4</color>
     <color name="verdict_safe_ink">#FF1F6B32</color>
+    <!-- Die Freigabefarben oben werden bewusst NICHT mehr fuer das essbare
+         Urteil verwendet: Gruen las sich als Erlaubnis. ViewStylingTest pinnt
+         weiter ihre Kontrastwerte, deshalb bleiben die Tokens erhalten. -->
+
+    <!-- Neutrale Marke fuer die Modellschaetzung. Kein Gruen: ein essbares
+         Ergebnis ist eine Schaetzung, keine Freigabe. Ein giftiges
+         Verwechslungsrisiko darf nie in Freigabefarbe erscheinen. -->
+    <color name="verdict_neutral">#FF4A5344</color>
+    <color name="verdict_neutral_tint">#FFF2ECDF</color>
+    <color name="verdict_neutral_ink">#FF1E241C</color>
 
     <!-- Anruf-Flaechen im Notfallblock; beide tragen weisse Schrift. -->
     <color name="call_poison">#FFC2311F</color>

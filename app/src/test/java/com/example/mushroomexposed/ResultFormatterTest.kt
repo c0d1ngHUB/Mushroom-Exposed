@@ -17,19 +17,19 @@ class ResultFormatterTest {
         val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
 
         assertEquals("essbar — Steinpilz", view.headline)
-        assertEquals("Boletus_edulis · 71 %", view.subline)
+        assertEquals("Boletus edulis · 71 %", view.subline)
         assertEquals("Steinpilz", view.name)
         assertEquals(VerdictTone.SAFE, view.tone)
         assertNull(view.emergency)
     }
 
     @Test
-    fun `top lines mark the verdict and format small confidences with one decimal`() {
+    fun `top lines mark only the poisonous hit and format small confidences with one decimal`() {
         val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
 
         assertEquals(
             listOf(
-                "1. Steinpilz — 71 % ✓",
+                "1. Steinpilz — 71 %",
                 "2. Schönfuß-Röhrling — 12 % ☠",
                 "3. Fahler Röhrling — 0,8 %",
             ),
@@ -42,7 +42,7 @@ class ResultFormatterTest {
         val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
 
         assertEquals(3, view.tops.size)
-        assertEquals(TopRow(1, "Steinpilz — 71 %", "✓", false), view.tops[0])
+        assertEquals(TopRow(1, "Steinpilz — 71 %", "", false), view.tops[0])
         assertEquals(TopRow(2, "Schönfuß-Röhrling — 12 %", "☠", true), view.tops[1])
         assertEquals(TopRow(3, "Fahler Röhrling — 0,8 %", "", false), view.tops[2])
     }

@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -122,8 +123,7 @@ class MainActivity : AppCompatActivity() {
             binding.historyPanel.visibility = View.GONE
         }
         binding.clearHistoryButton.setOnClickListener {
-            history.clear()
-            renderHistory()
+            confirmClearHistory()
         }
         binding.callPoisonButton.setOnClickListener {
             dial(ResultFormatter.POISON_CONTROL_NUMBER)
@@ -281,9 +281,12 @@ class MainActivity : AppCompatActivity() {
                 ink = color(R.color.verdict_caution_ink),
             )
             VerdictTone.SAFE -> VerdictColors(
-                mark = color(R.color.verdict_safe),
-                tint = color(R.color.verdict_safe_tint),
-                ink = color(R.color.verdict_safe_ink),
+                // Eine essbare Einschaetzung ist keine Freigabe. Neutrale Farbe
+                // statt Gruen: ein giftiges Verwechslungsrisiko darf nie in
+                // Freigabefarbe erscheinen.
+                mark = color(R.color.verdict_neutral),
+                tint = color(R.color.verdict_neutral_tint),
+                ink = color(R.color.verdict_neutral_ink),
             )
         }
 
@@ -419,18 +422,43 @@ class MainActivity : AppCompatActivity() {
         binding.historyPanel.visibility = View.VISIBLE
     }
 
+    /**
+     * Loeschen ist unwiderruflich und wird deshalb erst nach Rueckfrage
+     * ausgefuehrt. Der Knopf ist bei leerem Verlauf bereits deaktiviert; die
+     * Rueckfrage deckt den Fall ab, dass der Verlauf waehrend der Anzeige
+     * gefuellt wurde.
+     */
+    private fun confirmClearHistory() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.history_clear_confirm_title)
+            .setMessage(R.string.history_clear_confirm_message)
+            .setNegativeButton(R.string.history_cancel, null)
+            .setPositiveButton(R.string.history_clear_confirm_ok) { _, _ ->
+                history.clear()
+                renderHistory()
+            }
+            .show()
+    }
+
     private fun renderHistory() {
         val list = binding.historyList
         list.removeAllViews()
         val entries = history.readNewestFirst()
+
+        // Ein roter Loeschknopf ohne Eintraege ist eine Einladung ins Leere.
+        binding.clearHistoryButton.isEnabled = entries.isNotEmpty()
+        binding.clearHistoryButton.alpha = if (entries.isNotEmpty()) 1f else 0.5f
+
         if (entries.isEmpty()) {
             list.addView(label(getString(R.string.history_empty)))
             return
         }
+        // Eine Einschaetzung bekommt kein Haken-Symbol, nur eine giftige Warnung
+        // eines. Die Ampel sitzt in der Schriftfarbe, nicht in einem Zeichen.
         val toneMark = mapOf(
             "danger" to "☠",
-            "caution" to "!",
-            "safe" to "✓",
+            "caution" to "·",
+            "safe" to "·",
         )
         for (entry in entries) {
             val mark = toneMark[entry.verdict] ?: "·"
@@ -442,8 +470,10 @@ class MainActivity : AppCompatActivity() {
                 "safe" -> VerdictTone.SAFE
                 else -> null
             }
-            list.addView(label("$mark  ${entry.timestamp}  ${entry.german} — $percent$warning", tone))
-
+            // Lokales Datum statt Maschinenstempel, lesbarer Artname ohne
+            // Unterstrich. Die Signale stecken schon in Marke und Warnzeichen.
+            val shown = ResultFormatter.displayTimestamp(entry.timestamp)
+            list.addView(label("$mark  $shown  ${entry.german} — $percent$warning", tone))
         }
     }
 
@@ -455,7 +485,8 @@ class MainActivity : AppCompatActivity() {
             when (tone) {
                 VerdictTone.DANGER -> color(R.color.verdict_danger)
                 VerdictTone.CAUTION -> color(R.color.verdict_caution)
-                VerdictTone.SAFE -> color(R.color.verdict_safe)
+                // Neutral, nicht gruen: die Zeile behauptet keine Freigabe.
+                VerdictTone.SAFE -> color(R.color.verdict_neutral_ink)
                 null -> color(R.color.ink)
             }
         )

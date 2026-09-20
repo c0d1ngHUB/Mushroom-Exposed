@@ -147,13 +147,15 @@
     </LinearLayout>
 
     <!-- Steuerleiste im Live-Sucher: Licht, grosser Ausloeser, Verlauf. -->
+    <!-- Die Gruppe ist an beide Seiten gebunden und zentriert ihren Inhalt:
+         ohne die Zentrierung klebte der Ausloeser 73 dp links der Mitte. -->
     <LinearLayout
         android:id="@+id/controls"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginBottom="18dp"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
