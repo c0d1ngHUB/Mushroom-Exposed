@@ -71,11 +71,25 @@ app/src/main/java/com/example/mushroomexposed/
 
 ## Release state
 
-Shipping asset is **v0.6.0** (`model.tflite`, sha256 starts `001d6aed`). The GBIF
-candidate (663 classes, 288 px input) passes the release gate on all three seeds
-but is **not** staged — the gate only covers 43 of 664 classes (6.5 %), so its
-numbers justify neither staging nor rejection for the rest. See the training
-repo's `docs/superpowers/notes/` for the measurements.
+The shipping asset is the **GBIF-expanded seed-17 model** (`model.tflite`, 663
+classes, 288 px input, sha256 `001d6aed…`), staged on 2026-09-19 in commit
+`9c0d163`. It was measured against the 224 px baseline on the frozen GBIF holdout
+(unseen by both models — the baseline never trained on GBIF, the candidate had
+the holdout excluded):
+
+| Gate | Result | Basis |
+|---|---|---|
+| GBIF | macro top-1 **+0.4114**, 95 % CI low +0.2886 | 492 images / 43 species |
+| PVV | macro top-3 0.7979 → 0.8412, not worse | 143 images / 127 species |
+
+All three seeds pass, PyTorch↔TFLite parity max |p| = 2.83e-06. Identity was
+verified at every hop (seed run → asset → APK → installed app).
+
+**Scope limit:** the gate decides on 43 of 663 classes. Its numbers are valid for
+those classes and justify neither a quality claim nor a rejection for the other
+620 — they were never measured. The gate's reach, not a regression, is the open
+item; the cause is measured in the training repo's
+`docs/superpowers/notes/gate-abdeckung-2026-09-23.md`.
 
 ## License
 
