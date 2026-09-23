@@ -85,11 +85,29 @@ the holdout excluded):
 All three seeds pass, PyTorch↔TFLite parity max |p| = 2.83e-06. Identity was
 verified at every hop (seed run → asset → APK → installed app).
 
-**Scope limit:** the gate decides on 43 of 663 classes. Its numbers are valid for
-those classes and justify neither a quality claim nor a rejection for the other
-620 — they were never measured. The gate's reach, not a regression, is the open
-item; the cause is measured in the training repo's
-`docs/superpowers/notes/gate-abdeckung-2026-09-23.md`.
+**Scope of those numbers (corrected 2026-09-23):** the +0.4114 was measured over
+**492 images / 43 species**, because the seed-17 training run read only
+`gb_dataset/obs_index.json` — a side product of the crawl that listed 45 classes
+while 587 had image folders on disk, so 542 classes never reached training or
+gate. The frozen holdout file itself is not that narrow: it resolves to
+**5,560 images / 557 species**, and 5,695 of them are measurable. The 43 was an
+artifact of the index bug, not a property of the gate. That bug is fixed
+(`load_gbif()` now reads the directory), but **the gate has not been re-run on
+the wider basis yet** — a re-run on both bases is the open item.
+
+So: the numbers above are valid for those 43 species and justify neither a
+quality claim nor a rejection for the rest of the label space. Measured cause and
+the fix: `docs/superpowers/notes/gate-abdeckung-2026-09-23.md` in the training
+repo.
+
+**Known safety gap in the shipped model (measured 2026-09-23).** Three classes
+carried as "essbar" recognise themselves almost not at all, and clear images of
+a *different* edible species as edible while crossing the 0.60 threshold: on the
+frozen holdout basis (43 images) **1 of them stays green with no warning at
+all**. No lookalike entry exists for any of the three. Which three, and the full
+numbers: `docs/superpowers/notes/thin-edible-freigaben-2026-09-23.md`. No claim
+is made here about whether those species are edible — only that the model does
+not identify them and nothing catches it. The release decision is open.
 
 ## License
 
