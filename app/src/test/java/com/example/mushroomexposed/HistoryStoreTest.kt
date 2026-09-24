@@ -1,6 +1,8 @@
 package com.example.mushroomexposed
 
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -54,6 +56,32 @@ class HistoryStoreTest {
         store.clear()
 
         assertTrue(store.readNewestFirst().isEmpty())
+    }
+
+    @Test
+    fun `cap eviction removes the matching reference jpeg`() {
+        val store = HistoryStore(tmp.root, cap = 2)
+        store.append(entry(0), byteArrayOf(0))
+        store.append(entry(1), byteArrayOf(1))
+        store.append(entry(2), byteArrayOf(2))
+
+        val retained = store.readNewestFirst()
+        val images = File(tmp.root, "images")
+
+        assertEquals(2, retained.size)
+        assertTrue(retained.all { it.image != null && File(images, it.image!!).isFile })
+        assertEquals(2, images.listFiles()?.size)
+    }
+
+    @Test
+    fun `clear removes history entries and their reference images`() {
+        val store = HistoryStore(tmp.root)
+        store.append(entry(1), byteArrayOf(1))
+
+        store.clear()
+
+        assertTrue(store.readNewestFirst().isEmpty())
+        assertFalse(File(tmp.root, "images").exists())
     }
 
     @Test

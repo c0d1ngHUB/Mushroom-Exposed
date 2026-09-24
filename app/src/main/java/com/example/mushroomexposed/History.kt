@@ -9,6 +9,7 @@ data class HistoryEntry(
     val confidence: Float,
     val verdict: String,
     val lookalike: Boolean,
+    val image: String? = null,
 )
 
 private fun escape(value: String): String {
@@ -49,7 +50,7 @@ private fun unescape(value: String): String {
     return sb.toString()
 }
 
-/** One JSON object per line, fixed key order: ts, sci, de, conf, verdict, lookalike. */
+/** One JSON object per line; `image` is optional for backwards compatibility. */
 fun encode(entry: HistoryEntry): String = buildString {
     append("{\"ts\":\"").append(escape(entry.timestamp)).append('"')
     append(",\"sci\":\"").append(escape(entry.scientific)).append('"')
@@ -57,11 +58,12 @@ fun encode(entry: HistoryEntry): String = buildString {
     append(",\"conf\":").append(entry.confidence)
     append(",\"verdict\":\"").append(escape(entry.verdict)).append('"')
     append(",\"lookalike\":").append(entry.lookalike)
+    entry.image?.let { append(",\"image\":\"").append(escape(it)).append('"') }
     append('}')
 }
 
 private val FIELD = Regex(
-    "\"(ts|sci|de|conf|verdict|lookalike)\"\\s*:\\s*(\"(?:[^\"\\\\]|\\\\.)*\"|true|false|-?[0-9.]+)"
+    "\"(ts|sci|de|conf|verdict|lookalike|image)\"\\s*:\\s*(\"(?:[^\"\\\\]|\\\\.)*\"|true|false|-?[0-9.]+)"
 )
 
 private fun unquote(value: String): String =
@@ -82,23 +84,37 @@ fun decode(line: String): HistoryEntry? {
             confidence = (found["conf"] ?: return null).toFloat(),
             verdict = unescape(unquote(found["verdict"] ?: "\"\"")),
             lookalike = found["lookalike"] == "true",
+            image = found["image"]?.let { unescape(unquote(it)) },
         )
     } catch (e: NumberFormatException) {
         null
     }
 }
 
-/** Append-only JSONL store, capped so the file cannot grow without bound. */
+/** Append-only JSONL store and reference images, bounded as a single lifecycle. */
 class HistoryStore(private val directory: File, private val cap: Int = DEFAULT_CAP) {
-
     private val file get() = File(directory, FILE_NAME)
+    private val images get() = ReferenceImageStore(File(directory, IMAGES_DIRECTORY))
 
     @Synchronized
-    fun append(entry: HistoryEntry) {
+    fun append(entry: HistoryEntry, jpeg: ByteArray? = null): HistoryEntry {
         directory.mkdirs()
-        val existing = file.takeIf { it.isFile }?.readLines().orEmpty().filter { it.isNotBlank() }
-        val lines = (existing + encode(entry)).takeLast(cap)
-        file.writeText(lines.joinToString("\n", postfix = "\n"))
+        val existing = file.takeIf { it.isFile }?.readLines().orEmpty().mapNotNull { decode(it) }
+        var stored = entry
+        var createdImage: String? = null
+        try {
+            if (jpeg != null) {
+                createdImage = images.write(jpeg)
+                stored = entry.copy(image = createdImage)
+            }
+            val retained = (existing + stored).takeLast(cap)
+            writeHistory(retained)
+            images.prune(retained.mapNotNull { it.image }.toSet())
+            return stored
+        } catch (error: Exception) {
+            images.discard(createdImage)
+            throw error
+        }
     }
 
     fun readNewestFirst(): List<HistoryEntry> = try {
@@ -110,10 +126,22 @@ class HistoryStore(private val directory: File, private val cap: Int = DEFAULT_C
     @Synchronized
     fun clear() {
         if (file.isFile) file.delete()
+        images.clear()
+    }
+
+    private fun writeHistory(entries: List<HistoryEntry>) {
+        val temporary = File(directory, ".${FILE_NAME}.tmp")
+        try {
+            temporary.writeText(entries.joinToString("\n") { encode(it) } + if (entries.isEmpty()) "" else "\n")
+            check(temporary.renameTo(file)) { "cannot replace history" }
+        } finally {
+            if (temporary.exists()) temporary.delete()
+        }
     }
 
     companion object {
         const val FILE_NAME = "history.jsonl"
+        const val IMAGES_DIRECTORY = "images"
         const val DEFAULT_CAP = 200
     }
 }
