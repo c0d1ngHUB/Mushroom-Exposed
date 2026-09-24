@@ -7,7 +7,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ViewAccumulatorTest {
-    private val acceptance = ViewAcceptance(minCoverage = 0.60f, minSharpness = 0.70f)
+    private val acceptance = ViewAcceptance(
+        minCoverageByStep = mapOf(
+            ViewStep.CAP to 0.60f,
+            ViewStep.UNDERSIDE to 0.60f,
+            ViewStep.STIPE_RING to 0.60f,
+        ),
+        minSharpness = 0.70f,
+    )
 
     private fun evidence(
         step: ViewStep,
@@ -70,6 +77,30 @@ class ViewAccumulatorTest {
         assertEquals(setOf(ViewStep.CAP, ViewStep.UNDERSIDE, ViewStep.STIPE_RING), progress.captured)
         assertNull(progress.next)
         assertTrue(progress.complete)
+    }
+
+    @Test
+    fun `the coverage floor applies per view, not globally`() {
+        // Der Grund für den Umbau: `stipe_ring` wird vom Modell schwächer
+        // vorhergesagt als `cap` und braucht deshalb eine eigene, lockerere
+        // Grenze. Ein gemeinsamer Boden ließe entweder cap-Fehlalarme durch
+        // oder erkannte stipe_ring-Frames fallen.
+        val perView = ViewAcceptance(
+            minCoverageByStep = mapOf(
+                ViewStep.CAP to 0.20f,
+                ViewStep.UNDERSIDE to 0.10f,
+                ViewStep.STIPE_RING to 0.005f,
+            ),
+            minSharpness = 0.70f,
+        )
+        val accumulator = ViewAccumulator(perView)
+
+        // 0.15 liegt über der stipe_ring-Grenze, aber unter der cap-Grenze.
+        val stipe = accumulator.accept(evidence(ViewStep.STIPE_RING, coverage = 0.15f, frameId = 1L))
+        val cap = accumulator.accept(evidence(ViewStep.CAP, coverage = 0.15f, frameId = 2L))
+
+        assertTrue(stipe.captured.contains(ViewStep.STIPE_RING))
+        assertFalse(cap.captured.contains(ViewStep.CAP))
     }
 
     @Test

@@ -22,6 +22,13 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    // Die Unit-Tests laufen auf der JVM. Android gibt `org.json` dort als
+    // Stub aus ("not mocked"), der Vertrag der Ansichts-Schwellen wird aber
+    // genau darueber gelesen. `returnDefaultValues` genuegt hier nicht: es
+    // liefert leere Objekte, womit jede Kalibrierung still zu null wuerde.
+    testOptions {
+        unitTests.isReturnDefaultValues = false
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -37,6 +44,9 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+    // Die Schwellen-Konfiguration ist JSON. Android liefert `org.json` nur zur
+    // Laufzeit; fuer die JVM-Unit-Tests braucht es eine echte Umsetzung.
+    implementation("org.json:json:20240303")
     // CameraX
     val camerax = "1.3.4"
     implementation("androidx.camera:camera-core:$camerax")

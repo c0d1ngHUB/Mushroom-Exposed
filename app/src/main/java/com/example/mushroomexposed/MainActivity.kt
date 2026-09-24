@@ -71,13 +71,15 @@ class MainActivity : AppCompatActivity() {
      *
      * Die Akzeptanzschwelle gehoert zur evaluierten Modellkonfiguration
      * (Spec 2026-09-24, „Die konkreten Grenzen gehören zur evaluierten
-     * Modellkonfiguration, nicht in den UI-Code“). Solange der
-     * Segmentierer nicht durch sein Gate ist, liegt `segmenter.available` auf
-     * false und dieser Pfad wird nie erreicht — es gibt also keine erfundene
-     * Kalibrierung im Produktionspfad.
+     * Modellkonfiguration, nicht in den UI-Code“) und kommt deshalb aus
+     * `viewpoint.json`. Sie ist **null**, solange das Asset fehlt oder
+     * unvollstaendig ist — dann wird kein Frame akzeptiert und der
+     * Sammelvorgang kann nie abschliessen. Der fruehere Platzhalter 0.05 steht
+     * hier bewusst nicht mehr: er war unkalibriert, und gemessen liess er
+     * `stipe_ring` 1,6 % seiner belegten Frames erkennen (25.09.2026).
      */
-    private val viewAcceptance = ViewAcceptance(minCoverage = 0.05f, minSharpness = 0.05f)
-    private val viewAccumulator = ViewAccumulator(viewAcceptance)
+    private var viewAcceptance: ViewAcceptance? = null
+    private var viewAccumulator: ViewAccumulator? = null
 
     /**
      * Der Konsens wird bei jedem Start eines Sammelvorgangs neu gebaut:
@@ -224,9 +226,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onScanStart() {
-        // Der Segmentierer-Zustand entscheidet, was ein Druck bedeutet:
-        // sammeln (Hold-to-scan) oder ein Einzelbild analysieren.
-        when (fieldMode.onPrimaryDown(viewsAvailable = segmenter.available)) {
+        // Der Sammelmodus verlangt **beides**: das Segmentierer-Asset und die
+        // kalibrierten Grenzen aus `viewpoint.json`. Fehlt eines von beiden,
+        // gaebe es keinen Nachweis und damit keinen Abschluss — dann bleibt es
+        // beim Einzelbild statt bei einer Schleife, die nie fertig wird.
+        val viewsReady = segmenter.available && viewAccumulator != null
+        when (fieldMode.onPrimaryDown(viewsAvailable = viewsReady)) {
             FieldModeAction.CAPTURE -> {
                 captureSingleFrame()
                 return
@@ -239,7 +244,7 @@ class MainActivity : AppCompatActivity() {
             toast(getString(R.string.model_missing))
             return
         }
-        viewAccumulator.cancel()
+        viewAccumulator?.cancel()
         consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
         showScanningMode()
     }
@@ -285,7 +290,7 @@ class MainActivity : AppCompatActivity() {
      * Verlaufseintrag — der Abbruch darf nichts hinterlassen.
      */
     private fun cancelScan() {
-        viewAccumulator.cancel()
+        viewAccumulator?.cancel()
         consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
         renderViewRows(ViewProgress(emptySet(), ViewStep.CAP, false))
         if (fieldMode.state == FieldMode.LIVE) showLiveMode()
@@ -298,7 +303,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun onReturnToLive() {
         if (fieldMode.onReturnToLive() != FieldModeAction.RETURN_TO_LIVE) return
-        viewAccumulator.cancel()
+        viewAccumulator?.cancel()
         consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
         renderViewRows(ViewProgress(emptySet(), ViewStep.CAP, false))
         showLiveMode()
@@ -360,7 +365,7 @@ class MainActivity : AppCompatActivity() {
         val bitmap = frozen ?: previewView.bitmap
         if (bitmap == null) {
             fieldMode.onCaptureUnavailable()
-            viewAccumulator.cancel()
+            viewAccumulator?.cancel()
             toast(getString(R.string.frame_missing))
             showLiveMode()
             return
@@ -905,14 +910,15 @@ class MainActivity : AppCompatActivity() {
      * einzelner Thread ist.
      */
     private fun sampleViews(bitmap: Bitmap) {
+        val accumulator = viewAccumulator ?: return
         val frameId = viewFrameCounter.incrementAndGet()
         val evidence = segmenter.evidenceFor(bitmap, frameId)
         if (evidence.isEmpty()) return
         for (item in evidence) {
-            val progress = viewAccumulator.accept(item)
+            val progress = accumulator.accept(item)
             // Nur wenn diese Ansicht neu oder besser belegt wurde, lohnt der
             // Modellaufruf: der Konsens braucht je Ansicht genau einen Vektor.
-            val isSelected = viewAccumulator.best(item.step)?.frameId == item.frameId
+            val isSelected = accumulator.best(item.step)?.frameId == item.frameId
             if (isSelected) {
                 try {
                     consensus?.add(item.step, speciesProbabilities(bitmap))
@@ -1000,6 +1006,18 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             ViewpointSegmenter(null, 0, 0, 0)
         }
+
+        // Die kalibrierten Grenzen kommen aus dem Vertrag. Ohne sie gaebe es
+        // keine Akzeptanz und damit keinen Sammelvorgang — auch dann nicht,
+        // wenn das Modell geladen ist. Beides muss zusammenpassen.
+        viewAcceptance = try {
+            ViewpointConfig.parseOrNull(
+                assets.open(ViewpointConfig.ASSET).bufferedReader().use { it.readText() },
+            )
+        } catch (e: Exception) {
+            null
+        }
+        viewAccumulator = viewAcceptance?.let(::ViewAccumulator)
     }
 
     private fun loadModelFile(): MappedByteBuffer {
@@ -1019,13 +1037,13 @@ class MainActivity : AppCompatActivity() {
      */
     override fun onStop() {
         super.onStop()
-        viewAccumulator.cancel()
+        viewAccumulator?.cancel()
         consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        viewAccumulator.cancel()
+        viewAccumulator?.cancel()
         inferenceExecutor.shutdown()
         qualityExecutor.shutdown()
         interpreter?.close()

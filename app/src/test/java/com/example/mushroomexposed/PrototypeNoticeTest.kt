@@ -71,8 +71,9 @@ class PrototypeNoticeTest {
     @Test
     fun `without a segmenter the shutter falls back to a single frame capture`() {
         assertTrue(
-            "the press must pass the segmenter state into the state machine",
-            "onPrimaryDown(viewsAvailable = segmenter.available)" in main,
+            "the press must pass both the segmenter and the calibrated limits",
+            "val viewsReady = segmenter.available && viewAccumulator != null" in main &&
+                "onPrimaryDown(viewsAvailable = viewsReady)" in main,
         )
         assertTrue(
             "the fallback action must be handled, not dropped",
