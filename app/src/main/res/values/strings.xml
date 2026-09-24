@@ -33,9 +33,7 @@
     <string name="view_show_cap">Hut zeigen</string>
     <string name="view_show_underside">Unterseite zeigen</string>
     <string name="view_show_stipe_ring">Stiel / Ring zeigen</string>
-    <string name="view_hint_closer">Näher heran und ruhig halten</string>
     <string name="view_captured">Erfasst</string>
-    <string name="view_keep_holding">Halten — Ansichten werden gesammelt</string>
     <string name="view_scan_hint">Gedrückt halten und nacheinander Hut, Unterseite und Stiel / Ring zeigen</string>
 
     <!-- Ampel-Marken ueber dem Artnamen.

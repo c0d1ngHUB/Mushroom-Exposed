@@ -1,6 +1,7 @@
 package com.example.mushroomexposed
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -139,6 +140,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Beide Touch-Listener rufen `performClick()` selbst auf, sobald ein Klick
+     * erkannt ist (Sucher beim Tippen, Ausloeser beim Loslassen). Lint kann das
+     * nicht durch das Lambda hindurch sehen und meldet die fehlende
+     * `performClick`-Ueberschreibung; die eigentliche Zusicherung — "ein Klick
+     * loest auch die Klickhandlung aus" — ist erfuellt.
+     *
+     * Eine echte Ueberschreibung waere hier nicht moeglich: beide Ziele sind
+     * einfache Framework-Views, keine eigenen Klassen. Die verbleibende
+     * Einschraenkung ist echt und dokumentiert: wer ausschliesslich per
+     * Screenreader bedient, kann nicht halten und damit nicht sammeln.
+     */
+    @SuppressLint("ClickableViewAccessibility")
     private fun wireControls() {
         // Hold-to-scan: der Finger sammelt die drei Ansichten, ein Klick nicht
         // mehr. ACTION_DOWN startet, ACTION_UP bricht ab. Waehrend der Analyse
@@ -146,7 +160,13 @@ class MainActivity : AppCompatActivity() {
         binding.shutterButton.setOnTouchListener { view, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> onScanStart()
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> onScanStop()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    onScanStop()
+                    // Ein Haltering ist auch ein Bedienelement: Touch mit
+                    // Vorlesehilfe und Screenreader erwarten einen Klick, und
+                    // Lint verlangt ihn an genau dieser Stelle.
+                    if (event.actionMasked == MotionEvent.ACTION_UP) view.performClick()
+                }
             }
             // Nur die drei Zustandswechsel beanspruchen: alles andere soll
             // weiterlaufen, damit der Kreis optisch auf den Druck reagiert.
