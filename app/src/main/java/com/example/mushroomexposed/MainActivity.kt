@@ -309,20 +309,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Ein akzeptierter Analyseframe. Erst wenn alle drei Ansichten belegt sind,
-     * geht es in die Analyse — vorher passiert nichts Sichtbares ausser dem
-     * Fortschritt in den drei Zeilen.
-     */
-    private fun onViewEvidence(evidence: ViewEvidence) {
-        val progress = viewAccumulator.accept(evidence)
-        renderViewRows(progress)
-        if (progress.complete) completeScan()
-    }
-
-    /**
      * Alle drei Ansichten liegen vor. Ab hier wird der eingefrorene Frame
      * gezeigt und gerechnet; der Konsens laeuft ueber die drei gesammelten
      * Wahrscheinlichkeitsvektoren statt ueber ein Einzelbild.
+     *
+     * Aufgerufen aus `sampleViews` auf dem Quality-Executor, aber nur innerhalb
+     * eines `runOnUiThread`-Blocks — die Sichtbarkeitswechsel gehoeren auf den
+     * UI-Thread.
      */
     private fun completeScan() {
         fieldMode.onViewsComplete()
