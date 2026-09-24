@@ -102,6 +102,46 @@ class FieldModeMachineTest {
         assertTrue(machine.acceptsQualityUpdates)
     }
 
+    /**
+     * Der Rueckfall auf den Einzelbild-Pfad. Ohne Segmentierer kann der
+     * Sammelvorgang nie abgeschlossen werden — der Shutter wuerde nichts tun.
+     * Statt die App unbrauchbar zu machen, faellt der Druck auf genau das
+     * zurueck, was vor dem Mehransichten-Prototyp funktioniert hat: ein
+     * Einzelbild analysieren.
+     */
+    @Test
+    fun `without a segmenter a press captures a single frame instead of collecting`() {
+        val machine = FieldModeMachine()
+
+        assertEquals(FieldModeAction.CAPTURE, machine.onPrimaryDown(viewsAvailable = false))
+        assertEquals(FieldMode.ANALYSING, machine.state)
+        assertFalse("a single capture collects nothing", machine.acceptsQualityUpdates)
+    }
+
+    @Test
+    fun `with a segmenter a press still starts collecting`() {
+        val machine = FieldModeMachine()
+
+        assertEquals(FieldModeAction.START_SCAN, machine.onPrimaryDown(viewsAvailable = true))
+        assertEquals(FieldMode.SCANNING, machine.state)
+    }
+
+    @Test
+    fun `the default press is the hold-to-scan`() {
+        val machine = FieldModeMachine()
+
+        assertEquals(FieldModeAction.START_SCAN, machine.onPrimaryDown())
+    }
+
+    @Test
+    fun `the single frame fallback cannot be aborted by releasing the finger`() {
+        val machine = FieldModeMachine()
+        machine.onPrimaryDown(viewsAvailable = false)
+
+        assertEquals(FieldModeAction.IGNORE, machine.onPrimaryUp())
+        assertEquals("the result is already on its way", FieldMode.ANALYSING, machine.state)
+    }
+
     private fun frozenMachine(): FieldModeMachine = FieldModeMachine().apply {
         onPrimaryDown()
         onViewsComplete()

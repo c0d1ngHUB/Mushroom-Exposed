@@ -51,10 +51,37 @@ class PrototypeNoticeTest {
             "the loader must catch the missing asset and stay unavailable",
             "loadViewpointModel" in main && "ViewpointSegmenter(null" in main,
         )
-        // ... und der Sammelstart muss vorher abbrechen.
+        // ... und ohne Segmentierer darf keine Ansicht gruen werden.
         assertTrue(
-            "starting a scan must refuse without a segmenter",
-            "segmenter.available" in main && "viewpoint_missing" in main,
+            "a view can only be marked from segmenter evidence",
+            "segmenter.available" in main,
+        )
+    }
+
+    /**
+     * Der Rueckfall auf den Einzelbild-Pfad.
+     *
+     * Die alte Regel war: ohne Segmentierer verweigert der Ausloeser und die
+     * App zeigt **nie** ein Ergebnis. Das machte die ausgelieferte App
+     * unbrauchbar, sobald der Mehransichten-Pfad der einzige Aufnahmeweg war.
+     * Jetzt faellt der Druck auf den Einzelbild-Pfad zurueck — die Ansicht
+     * bleibt trotzdem geschlossen (die Zeilen koennen nicht gruen werden), aber
+     * die Artenbestimmung funktioniert weiter.
+     */
+    @Test
+    fun `without a segmenter the shutter falls back to a single frame capture`() {
+        assertTrue(
+            "the press must pass the segmenter state into the state machine",
+            "onPrimaryDown(viewsAvailable = segmenter.available)" in main,
+        )
+        assertTrue(
+            "the fallback action must be handled, not dropped",
+            "FieldModeAction.CAPTURE ->" in main && "captureSingleFrame()" in main,
+        )
+        assertTrue(
+            "the fallback must run the species model on one frame",
+            "private fun captureSingleFrame()" in main &&
+                "private fun analyseSingleFrame(" in main,
         )
     }
 

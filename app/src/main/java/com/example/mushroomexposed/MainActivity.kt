@@ -224,22 +224,60 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onScanStart() {
-        if (fieldMode.onPrimaryDown() != FieldModeAction.START_SCAN) return
+        // Der Segmentierer-Zustand entscheidet, was ein Druck bedeutet:
+        // sammeln (Hold-to-scan) oder ein Einzelbild analysieren.
+        when (fieldMode.onPrimaryDown(viewsAvailable = segmenter.available)) {
+            FieldModeAction.CAPTURE -> {
+                captureSingleFrame()
+                return
+            }
+            FieldModeAction.START_SCAN -> Unit
+            else -> return
+        }
         if (interpreter == null) {
             fieldMode.onCaptureUnavailable()
             toast(getString(R.string.model_missing))
             return
         }
-        // Fail closed: ohne geladenen Segmentierer kann keine Ansicht belegt
-        // werden. Dann wird gar nicht erst gesammelt und nichts wird gruen.
-        if (!segmenter.available) {
-            fieldMode.onCaptureUnavailable()
-            toast(getString(R.string.viewpoint_missing))
-            return
-        }
         viewAccumulator.cancel()
         consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
         showScanningMode()
+    }
+
+    /**
+     * Rueckfall ohne Segmentierer: ein Frame, eine Analyse, ein Ergebnis.
+     *
+     * Das ist der Pfad vor dem Mehransichten-Prototyp. Er wird nicht still
+     * genommen: die Ansichtszeilen koennen ohne Segmentierer nicht gruen werden,
+     * der Artenkonsens entsteht aus genau einer Ansicht, und der Nutzer sieht
+     * denselben Hinweis wie bisher. Was entfaellt, ist nur das Warten auf
+     * Evidenz, die es nicht geben kann.
+     */
+    private fun captureSingleFrame() {
+        if (interpreter == null) {
+            fieldMode.onCaptureUnavailable()
+            toast(getString(R.string.model_missing))
+            return
+        }
+        val bitmap = previewView.bitmap
+        if (bitmap == null) {
+            fieldMode.onCaptureUnavailable()
+            toast(getString(R.string.frame_missing))
+            return
+        }
+        showAnalysingMode(bitmap)
+        analyseSingleFrame(bitmap)
+    }
+
+    /** Ein Frame durch das Artenmodell, direkt in die bestehende Anzeige. */
+    private fun analyseSingleFrame(bitmap: Bitmap) {
+        inferenceExecutor.execute {
+            try {
+                finishAnalysis(speciesProbabilities(bitmap))
+            } catch (e: Exception) {
+                runOnUiThread { onAnalysisFailed(e.message ?: e.javaClass.simpleName) }
+            }
+        }
     }
 
     /**

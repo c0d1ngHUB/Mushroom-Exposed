@@ -180,6 +180,50 @@ class SystemBarsLayoutTest {
     }
 
     /**
+     * Der Rueckfall auf den Einzelbild-Pfad, am echten Objekt.
+     *
+     * Ohne Segmentierer ist der Hold-to-scan kein Weg zu einem Ergebnis: die
+     * drei Ansichten koennen nie belegt werden, der Konsens bleibt leer. Ein
+     * Druck muss deshalb auf genau einen Frame zurueckfallen — sonst zeigt die
+     * ausgelieferte App **nie** eine Artenbestimmung.
+     *
+     * Geprueft wird die Zustandsmaschine der Activity, nicht ein Nachbau: sie
+     * ist das Objekt, das der Ausloeser tatsaechlich befragt.
+     */
+    @Test
+    fun aMissingSegmenterMakesThePressCaptureASingleFrame() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val field = MainActivity::class.java.getDeclaredField("fieldMode")
+                    .apply { isAccessible = true }
+                val machine = field.get(activity) as FieldModeMachine
+                val segmenter = MainActivity::class.java.getDeclaredField("segmenter")
+                    .apply { isAccessible = true }
+                    .get(activity) as ViewpointSegmenter
+
+                assertEquals("the shipped asset has no segmenter", FieldMode.LIVE, machine.state)
+
+                assertEquals(
+                    "without a segmenter a press is a single capture, not a scan",
+                    FieldModeAction.CAPTURE,
+                    machine.onPrimaryDown(viewsAvailable = segmenter.available),
+                )
+                assertEquals(
+                    "the frame is analysed immediately, nothing is collected",
+                    FieldMode.ANALYSING,
+                    machine.state,
+                )
+            }
+        }
+    }
+
+    /**
      * Das Sheet deckt die Steuerleiste. Ohne die schwebenden Chips gaebe es in
      * FROZEN keinen Weg zurueck zur Kamera und keinen zum Verlauf. Der
      * Zustandswechsel wird ueber denselben privaten Pfad ausgeloest, den eine
