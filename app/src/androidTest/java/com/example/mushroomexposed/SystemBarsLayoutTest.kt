@@ -330,6 +330,42 @@ class SystemBarsLayoutTest {
     }
 
     /**
+     * Der Ausloeser benennt am Geraet seine Handlung und traegt keine
+     * Freigabeoptik. Die sichtbare Sammelanweisung uebernimmt den Wortlaut.
+     */
+    @Test
+    fun theShutterNamesItsActionAndCarriesNoApprovalColour() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val shutter = activity.findViewById<android.view.View>(R.id.shutterButton)
+                val described = shutter.contentDescription?.toString().orEmpty()
+                assertTrue(
+                    "the shutter must describe holding for the three views, was '$described'",
+                    described.contains("halten", ignoreCase = true),
+                )
+                assertTrue(
+                    "the description must name all three views, was '$described'",
+                    described.contains("Hut") && described.contains("Unterseite"),
+                )
+
+                // Die Anweisung im Sucher muss zur Haltegeste passen, nicht mehr
+                // zum Klicken auffordern.
+                val hint = activity.findViewById<android.widget.TextView>(R.id.qualityHint)
+                assertFalse(
+                    "the live guidance must not tell the user to press a button, was '${hint.text}'",
+                    hint.text.toString().contains("Bild analysieren"),
+                )
+            }
+        }
+    }
+
+    /**
      * Das Querformat ist gesperrt — endgueltig, nicht uebergangsweise: das
      * Geraet wird nur hochkant verwendet und es wird kein zweites Layout
      * gepflegt (Entscheidung 2026-09-20, siehe

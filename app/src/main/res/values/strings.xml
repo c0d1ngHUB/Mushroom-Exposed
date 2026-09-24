@@ -62,7 +62,10 @@
     <string name="emergency_text">Bei Verdacht auf Pilzvergiftung: Vergiftungsinformationszentrale 01 406 43 43 (24 h) oder Notruf 144. Restpilz und Erbrochenes aufbewahren.</string>
 
     <string name="cd_torch">Licht ein- oder ausschalten</string>
-    <string name="cd_shutter">Analysieren</string>
+    <!-- Der Ausloeser traegt keinen Text im Kreis (88 dp, Spec 2026-09-24). Die
+         Handlung muss trotzdem benannt sein, damit Touch mit Vorlesehilfe und
+         Screenreader dieselbe sichtbare Aktion nennen. -->
+    <string name="cd_shutter">Gedrückt halten, um Hut, Unterseite und Stiel / Ring zu erfassen</string>
     <string name="cd_history">Verlauf öffnen</string>
     <string name="cd_call">%1$s anrufen</string>
 

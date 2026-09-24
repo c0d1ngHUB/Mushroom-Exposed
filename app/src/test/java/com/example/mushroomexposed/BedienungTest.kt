@@ -1,6 +1,7 @@
 package com.example.mushroomexposed
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -101,5 +102,65 @@ class BedienungTest {
             "the destructive action must be text-styled, not a filled danger button",
             "borderlessButtonStyle" in clear || "textButtonStyle" in clear,
         )
+    }
+
+    /**
+     * Der Ausloeser benennt seine Aktion.
+     *
+     * Die freigegebene Mehransichten-Spec (2026-09-24) ersetzt den klickbaren
+     * Knopf "Bild analysieren" durch einen Haltering ohne Text im Kreis. Die
+     * Anforderung dahinter bleibt aber unveraendert gueltig: Touch- und
+     * Screenreader-Nutzung muessen dieselbe sichtbare Handlung nennen, und die
+     * Oberflaeche darf keine Freigabeoptik tragen. Diese Tests halten das in
+     * der neuen Form fest.
+     */
+    @Test
+    fun `the shutter names the capture action for touch and screen readers`() {
+        val shutter = blockOf("shutterButton")
+        val strings = File("src/main/res/values/strings.xml").readText()
+
+        assertTrue("the shutter must carry a content description", "android:contentDescription=" in shutter)
+        assertTrue(
+            "the content description must name the hold-to-scan action",
+            "@string/cd_shutter" in shutter,
+        )
+        assertTrue(
+            "cd_shutter must describe holding and the three views, not a bare 'Analysieren'",
+            Regex("<string name=\"cd_shutter\">(.*?)</string>")
+                .find(strings)?.groupValues?.get(1)
+                ?.let { it.contains("halten", ignoreCase = true) } == true,
+        )
+        assertTrue(
+            "the visible guidance must come from a string resource so it stays in sync",
+            "R.string.view_scan_hint" in main,
+        )
+    }
+
+    @Test
+    fun `the shutter never uses approval green`() {
+        val shutter = blockOf("shutterButton")
+
+        assertFalse(
+            "the shutter must not be filled with moss: green means 'view captured', never 'go'",
+            "@color/moss" in shutter,
+        )
+        assertFalse(
+            "the shutter must not use the safe-release colour",
+            "@color/verdict_safe" in shutter,
+        )
+    }
+
+    @Test
+    fun `the good frame hint describes the framing instead of promising a result`() {
+        val strings = File("src/main/res/values/strings.xml").readText()
+        val hint = Regex("<string name=\"hint_ok\">(.*?)</string>")
+            .find(strings)?.groupValues?.get(1).orEmpty()
+
+        assertEquals(
+            "the good state must describe the picture, not read as a guarantee",
+            "Pilz vollständig im Rahmen",
+            hint,
+        )
+        assertFalse("no capture guarantee wording", hint.contains("auslösen"))
     }
 }
