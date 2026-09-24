@@ -12,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,6 +53,127 @@ class SystemBarsLayoutTest {
                         "side control ${torch.width}x${torch.height}px",
                     shutter.width >= 48 * shutter.resources.displayMetrics.density &&
                         shutter.width >= torch.width * 1.2f,
+                )
+            }
+        }
+    }
+
+    /**
+     * Hold-to-scan auf einem echten Layout: die drei Ansichtszeilen sind
+     * sichtbar, jede ueber der 48-dp-Marke, und keine ist im Ruhezustand
+     * als "erfasst" markiert. Ein Abbruch darf nichts hinterlassen.
+     */
+    @Test
+    fun theThreeViewRowsAreVisibleAndUncapturedInLive() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val density = activity.resources.displayMetrics.density
+                for (id in listOf(R.id.viewCap, R.id.viewUnderside, R.id.viewStipeRing)) {
+                    val row = activity.findViewById<android.view.View>(id)
+                    assertEquals("row $id must be visible in LIVE", android.view.View.VISIBLE, row.visibility)
+                    assertTrue(
+                        "row $id must keep the 48dp touch minimum, is ${row.height}px",
+                        row.height >= 48 * density * 0.95,
+                    )
+                }
+                // Ruhezustand: keine Zeile darf "Erfasst" behaupten.
+                val cap = activity.findViewById<android.widget.TextView>(R.id.viewCap)
+                val captured = activity.getString(R.string.view_captured)
+                assertFalse(
+                    "an unfilled row must not claim to be captured, was '${cap.text}'",
+                    cap.text.toString().contains(captured),
+                )
+        }
+        }
+    }
+
+    /**
+     * Der Review-Fokus: Loslassen waehrend des Sammelns bricht ab und laesst
+     * weder eingefrorenes Bild noch Verlaufseintrag zurueck.
+     */
+    @Test
+    fun releasingDuringCollectionCancelsWithoutPersisting() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val mode = MainActivity::class.java.getDeclaredField("fieldMode")
+                    .apply { isAccessible = true }
+                    .get(activity)
+                val machine = mode as FieldModeMachine
+
+                // Vorher zaehlen, nicht die blosse Existenz pruefen: andere
+                // Tests und fruehere Laeufe duerfen den Verlauf schon gefuellt
+                // haben. Geprueft wird die Wirkung *dieses* Abbruchs.
+                val entriesBefore = readHistoryEntries(activity)
+
+                val down = machine.onPrimaryDown()
+                assertEquals("pressing the ring must start a scan", FieldModeAction.START_SCAN, down)
+
+                val up = machine.onPrimaryUp()
+                assertEquals("releasing during collection must stop it", FieldModeAction.STOP_SCAN, up)
+                assertEquals("the machine must be back in LIVE", FieldMode.LIVE, machine.state)
+
+                val frozen = MainActivity::class.java.getDeclaredField("frozen")
+                    .apply { isAccessible = true }
+                    .get(activity)
+                assertNull("a cancelled scan must not leave a frozen frame", frozen)
+
+                assertEquals(
+                    "a cancelled scan must not add a history entry",
+                    entriesBefore,
+                    readHistoryEntries(activity),
+                )
+            }
+        }
+    }
+
+    /** Anzahl der Verlaufszeilen auf der Platte; 0, solange nichts geschrieben wurde. */
+    private fun readHistoryEntries(activity: android.app.Activity): Int {
+        val file = java.io.File(java.io.File(activity.filesDir, "history"), "history.jsonl")
+        if (!file.isFile) return 0
+        return file.readLines().count { it.isNotBlank() }
+    }
+
+    /**
+     * Fail closed: ohne geladenen Segmentierer bleibt der Ausloeser ohne
+     * Wirkung und es entsteht kein gruener Zustand. Das ausgelieferte Asset
+     * enthaelt `viewpoint.tflite` nicht, also ist genau das der Ist-Zustand.
+     */
+    @Test
+    fun aMissingViewpointModelKeepsTheScanActionUnavailable() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val segmenter = MainActivity::class.java.getDeclaredField("segmenter")
+                    .apply { isAccessible = true }
+                    .get(activity) as ViewpointSegmenter
+
+                assertFalse(
+                    "without viewpoint.tflite the segmenter must report itself unavailable",
+                    segmenter.available,
+                )
+                assertTrue(
+                    "an unavailable segmenter must never emit evidence",
+                    segmenter.evidenceFor(
+                        android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888),
+                        1L,
+                    ).isEmpty(),
                 )
             }
         }

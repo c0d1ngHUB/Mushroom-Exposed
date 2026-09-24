@@ -65,6 +65,30 @@ class MainActivity : AppCompatActivity() {
     private var frozen: Bitmap? = null
     private val fieldMode = FieldModeMachine()
 
+    /**
+     * Sammelt die drei belegten Ansichten waehrend des Gedrueckthaltens.
+     *
+     * Die Akzeptanzschwelle gehoert zur evaluierten Modellkonfiguration
+     * (Spec 2026-09-24, „Die konkreten Grenzen gehören zur evaluierten
+     * Modellkonfiguration, nicht in den UI-Code“). Solange der
+     * Segmentierer nicht durch sein Gate ist, liegt `segmenter.available` auf
+     * false und dieser Pfad wird nie erreicht — es gibt also keine erfundene
+     * Kalibrierung im Produktionspfad.
+     */
+    private val viewAcceptance = ViewAcceptance(minCoverage = 0.05f, minSharpness = 0.05f)
+    private val viewAccumulator = ViewAccumulator(viewAcceptance)
+
+    /**
+     * Der Konsens wird bei jedem Start eines Sammelvorgangs neu gebaut:
+     * Vektoren aus einem vorherigen Vorgang duerfen kein Ergebnis tragen.
+     *
+     * Nullable, weil die Artenzahl erst nach `loadModel()` feststeht und ein
+     * `SpeciesConsensus(0)` ungueltig waere.
+     */
+    private var consensus: SpeciesConsensus? = null
+    private lateinit var segmenter: ViewpointSegmenter
+    private val viewFrameCounter = java.util.concurrent.atomic.AtomicLong(0L)
+
     private val inferenceExecutor = Executors.newSingleThreadExecutor()
     private val qualityExecutor = Executors.newSingleThreadExecutor()
     private val history by lazy { HistoryStore(File(filesDir, "history")) }
@@ -98,6 +122,7 @@ class MainActivity : AppCompatActivity() {
             val modelClasses = interpreter!!.getOutputTensor(0).shape().lastOrNull()
                 ?: throw IllegalStateException("Model output tensor has no class dimension.")
             ModelContract.requireMatchingClassCount(modelClasses, labels.size)
+            loadViewpointModel()
             binding.resultHeadline.text = getString(R.string.status_ready, labels.size)
 
             val curated = lookalikes.values.sumOf { it.size }
@@ -115,8 +140,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun wireControls() {
-        binding.shutterButton.setOnClickListener { onShutter() }
-        binding.newChip.setOnClickListener { onShutter() }
+        // Hold-to-scan: der Finger sammelt die drei Ansichten, ein Klick nicht
+        // mehr. ACTION_DOWN startet, ACTION_UP bricht ab. Waehrend der Analyse
+        // wird das Loslassen bewusst ignoriert (FieldModeMachine).
+        binding.shutterButton.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> onScanStart()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> onScanStop()
+            }
+            // Nur die drei Zustandswechsel beanspruchen: alles andere soll
+            // weiterlaufen, damit der Kreis optisch auf den Druck reagiert.
+            event.actionMasked == MotionEvent.ACTION_DOWN ||
+                event.actionMasked == MotionEvent.ACTION_UP ||
+                event.actionMasked == MotionEvent.ACTION_CANCEL
+        }
+        binding.newChip.setOnClickListener { onReturnToLive() }
         binding.torchButton.setOnClickListener { toggleTorch() }
         binding.historyButton.setOnClickListener { showHistory() }
         binding.historyChip.setOnClickListener { showHistory() }
@@ -152,29 +190,132 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    /** Route the shutter press through the field-mode state machine. */
-    private fun onShutter() {
-        when (fieldMode.onPrimaryAction()) {
-            FieldModeAction.CAPTURE -> captureAndAnalyse()
-            FieldModeAction.RETURN_TO_LIVE -> showLiveMode()
+    /**
+     * Loslassen des Sammelrings. Waehrend des Sammelns bricht das ab — ohne
+     * eingefrorenes Bild, ohne Verlaufseintrag, ohne Datei. Waehrend der
+     * Analyse ignoriert die Maschine das Loslassen.
+     */
+    private fun onScanStop() {
+        when (fieldMode.onPrimaryUp()) {
+            FieldModeAction.STOP_SCAN -> cancelScan()
             FieldModeAction.IGNORE -> Unit
+            else -> Unit
         }
     }
 
-    private fun captureAndAnalyse() {
+    private fun onScanStart() {
+        if (fieldMode.onPrimaryDown() != FieldModeAction.START_SCAN) return
         if (interpreter == null) {
             fieldMode.onCaptureUnavailable()
             toast(getString(R.string.model_missing))
             return
         }
-        val bitmap = previewView.bitmap
+        // Fail closed: ohne geladenen Segmentierer kann keine Ansicht belegt
+        // werden. Dann wird gar nicht erst gesammelt und nichts wird gruen.
+        if (!segmenter.available) {
+            fieldMode.onCaptureUnavailable()
+            toast(getString(R.string.viewpoint_missing))
+            return
+        }
+        viewAccumulator.cancel()
+        consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
+        showScanningMode()
+    }
+
+    /**
+     * Abbruch: alle temporaeren Ansichtsreferenzen verwerfen. Kein Bild, kein
+     * Verlaufseintrag — der Abbruch darf nichts hinterlassen.
+     */
+    private fun cancelScan() {
+        viewAccumulator.cancel()
+        consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
+        renderViewRows(ViewProgress(emptySet(), ViewStep.CAP, false))
+        if (fieldMode.state == FieldMode.LIVE) showLiveMode()
+    }
+
+    /**
+     * Der einzige Weg aus einem eingefrorenen Ergebnis zurueck. Loescht das
+     * eingefrorene Bild sofort, damit kein Ergebnis einer alten Aufnahme unter
+     * einem neuen Sucher stehen bleibt.
+     */
+    private fun onReturnToLive() {
+        if (fieldMode.onReturnToLive() != FieldModeAction.RETURN_TO_LIVE) return
+        viewAccumulator.cancel()
+        consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
+        renderViewRows(ViewProgress(emptySet(), ViewStep.CAP, false))
+        showLiveMode()
+    }
+
+    /** Der Sammelzustand: Ansichtszeilen sichtbar, noch kein eingefrorenes Bild. */
+    private fun showScanningMode() {
+        binding.targetFrame.visibility = View.VISIBLE
+        binding.resultSheet.visibility = View.GONE
+        binding.frozenChips.visibility = View.GONE
+        binding.controls.visibility = View.VISIBLE
+        binding.qualityHint.visibility = View.VISIBLE
+        binding.qualityHint.text = getString(R.string.view_scan_hint)
+        renderViewRows(ViewProgress(emptySet(), ViewStep.CAP, false))
+    }
+
+    /**
+     * Zeichnet die drei Ansichtszeilen. Gefuellt plus „Erfasst“ heisst
+     * ausschliesslich: diese Bildansicht wurde ausreichend erfasst. Es ist
+     * keine Bestimmung und keine Verzehrfreigabe.
+     */
+    private fun renderViewRows(progress: ViewProgress) {
+        val rows = listOf(
+            ViewStep.CAP to binding.viewCap,
+            ViewStep.UNDERSIDE to binding.viewUnderside,
+            ViewStep.STIPE_RING to binding.viewStipeRing,
+        )
+        for ((step, row) in rows) {
+            val captured = step in progress.captured
+            row.text = if (captured) {
+                "${rowLabel(step)} — ${getString(R.string.view_captured)}"
+            } else {
+                rowLabel(step)
+            }
+            row.setTextColor(if (captured) color(R.color.ink) else color(R.color.ink3))
+            row.setBackgroundResource(
+                if (captured) R.drawable.bg_view_row_captured else R.drawable.bg_view_row,
+            )
+        }
+    }
+
+    private fun rowLabel(step: ViewStep): String = when (step) {
+        ViewStep.CAP -> getString(R.string.view_show_cap)
+        ViewStep.UNDERSIDE -> getString(R.string.view_show_underside)
+        ViewStep.STIPE_RING -> getString(R.string.view_show_stipe_ring)
+    }
+
+    /**
+     * Ein akzeptierter Analyseframe. Erst wenn alle drei Ansichten belegt sind,
+     * geht es in die Analyse — vorher passiert nichts Sichtbares ausser dem
+     * Fortschritt in den drei Zeilen.
+     */
+    private fun onViewEvidence(evidence: ViewEvidence) {
+        val progress = viewAccumulator.accept(evidence)
+        renderViewRows(progress)
+        if (progress.complete) completeScan()
+    }
+
+    /**
+     * Alle drei Ansichten liegen vor. Ab hier wird der eingefrorene Frame
+     * gezeigt und gerechnet; der Konsens laeuft ueber die drei gesammelten
+     * Wahrscheinlichkeitsvektoren statt ueber ein Einzelbild.
+     */
+    private fun completeScan() {
+        fieldMode.onViewsComplete()
+        val bitmap = frozen ?: previewView.bitmap
         if (bitmap == null) {
             fieldMode.onCaptureUnavailable()
+            viewAccumulator.cancel()
             toast(getString(R.string.frame_missing))
+            showLiveMode()
             return
         }
         showAnalysingMode(bitmap)
-        analyse(bitmap)
+        analyseConsensus()
     }
 
     private fun showAnalysingMode(bitmap: Bitmap) {
@@ -194,78 +335,99 @@ class MainActivity : AppCompatActivity() {
         binding.shutterButton.alpha = 0.55f
     }
 
-    private fun analyse(bitmap: Bitmap) {
-        val interpreter = interpreter ?: return
-        val crop = centreSquare(bitmap)
+    /**
+     * Mehransichten-Konsens statt Einzelbild.
+     *
+     * Jede der drei belegten Ansichten laeuft einmal durch das Artenmodell; die
+     * Wahrscheinlichkeitsvektoren werden geometrisch gemittelt. Erst danach
+     * entscheidet die bestehende `VerdictPolicy` — der Sicherheitsschutz bleibt
+     * der letzte Entscheider, nicht der Konsens.
+     */
+    private fun analyseConsensus() {
+        val probabilities = consensus?.result()
         inferenceExecutor.execute {
             try {
-                val scaled = Bitmap.createScaledBitmap(crop, inputW, inputH, true)
-                val pixels = IntArray(inputW * inputH)
-                scaled.getPixels(pixels, 0, inputW, 0, 0, inputW, inputH)
-                val buffer = ByteBuffer.allocateDirect(inputW * inputH * 3 * 4)
-                    .order(ByteOrder.LITTLE_ENDIAN)
-                for (p in pixels) {
-                    buffer.putFloat(((p shr 16) and 0xFF) / 255f)
-                    buffer.putFloat(((p shr 8) and 0xFF) / 255f)
-                    buffer.putFloat((p and 0xFF) / 255f)
+                if (probabilities == null) {
+                    runOnUiThread { onAnalysisFailed(getString(R.string.viewpoint_missing)) }
+                    return@execute
                 }
-                buffer.rewind()
-
-                val output = Array(1) { FloatArray(labels.size.coerceAtLeast(1)) }
-                interpreter.run(buffer, output)
-                val probs = softmax(output[0])
-                val top = probs.indices.sortedByDescending { probs[it] }.take(3)
-
-                val ranked = top.mapNotNull { index ->
-                    labels.getOrNull(index)?.let { species ->
-                        RankedSpecies(species.name, species.scientific, species.verdict, probs[index])
-                    }
-                }
-                val bestIndex = top.firstOrNull()
-                val best = bestIndex?.let { labels.getOrNull(it) }
-                val bestProbability = bestIndex?.let { probs[it] } ?: 0f
-                val hint = best?.let { lookalikes[it.scientific]?.firstOrNull() }
-                // Liegt eine giftige Art in der kurzen Trefferliste, wird eine
-                // "essbar"-Freigabe zurueckgestuft. Messbefund 19.09.2026: das
-                // Modell gibt giftige Arten als essbar frei, die Konfidenz
-                // verraet das nicht -- die giftige Alternative in den Top-3 schon.
-                val toxicAlternative = ranked.firstOrNull { it.verdict == "giftig" }
-                // Zweites, breiteres Signal: die Gattung. Die schlimmsten
-                // Fehlfreigaben fuehren Knollenblaetterpilze in den Top-3, aber
-                // als *essbare* (Amanita_ceciliae) -- das Verdict sieht das
-                // nicht, die Gattung schon. Nur Hinweis, keine Blockade: als
-                // Blockade gemessen kostet die Regel die Haelfte der Freigaben.
-                val toxicGenus = ToxicGenus.firstRisky(
-                    ranked.map { it.scientific },
-                    riskyGenera,
-                )
-                val decision = VerdictPolicy.decide(
-                    best?.verdict,
-                    bestProbability,
-                    hint,
-                    toxicAlternative?.germanName,
-                    toxicGenus,
-                )
-                val view = ResultFormatter.format(ranked, decision)
-
-                runOnUiThread {
-                    fieldMode.onAnalysisFinished()
-                    render(view)
-                    recordHistory(best, bestProbability, decision, hint != null)
-                    showFrozenControls()
-                }
+                finishAnalysis(probabilities)
             } catch (e: Exception) {
-                runOnUiThread {
-                    fieldMode.onAnalysisFinished()
-                    binding.resultHeadline.text = getString(R.string.inference_failed, e.message)
-                    binding.statusDetail.visibility = View.GONE
-                    ViewStyling.fillOf(this, binding.statusPill, color(R.color.verdict_danger))
-                    binding.resultSheet.visibility = View.GONE
-                    binding.frozenChips.visibility = View.VISIBLE
-                    showFrozenControls()
-                }
+                runOnUiThread { onAnalysisFailed(e.message ?: e.javaClass.simpleName) }
             }
         }
+    }
+
+    /** Ein Frame durch das Artenmodell: weiche Wahrscheinlichkeiten ueber alle Klassen. */
+    private fun speciesProbabilities(bitmap: Bitmap): FloatArray {
+        val interpreter = interpreter ?: throw IllegalStateException("no interpreter")
+        val crop = centreSquare(bitmap)
+        val scaled = Bitmap.createScaledBitmap(crop, inputW, inputH, true)
+        val pixels = IntArray(inputW * inputH)
+        scaled.getPixels(pixels, 0, inputW, 0, 0, inputW, inputH)
+        val buffer = ByteBuffer.allocateDirect(inputW * inputH * 3 * 4)
+            .order(ByteOrder.LITTLE_ENDIAN)
+        for (p in pixels) {
+            buffer.putFloat(((p shr 16) and 0xFF) / 255f)
+            buffer.putFloat(((p shr 8) and 0xFF) / 255f)
+            buffer.putFloat((p and 0xFF) / 255f)
+        }
+        buffer.rewind()
+
+        val output = Array(1) { FloatArray(labels.size.coerceAtLeast(1)) }
+        interpreter.run(buffer, output)
+        return softmax(output[0])
+    }
+
+    /** Aus den Konsens-Wahrscheinlichkeiten die Anzeige bauen. */
+    private fun finishAnalysis(probs: FloatArray) {
+        val top = probs.indices.sortedByDescending { probs[it] }.take(3)
+        val ranked = top.mapNotNull { index ->
+            labels.getOrNull(index)?.let { species ->
+                RankedSpecies(species.name, species.scientific, species.verdict, probs[index])
+            }
+        }
+        val bestIndex = top.firstOrNull()
+        val best = bestIndex?.let { labels.getOrNull(it) }
+        val bestProbability = bestIndex?.let { probs[it] } ?: 0f
+        val hint = best?.let { lookalikes[it.scientific]?.firstOrNull() }
+
+        // Liegt eine giftige Art in der kurzen Trefferliste, wird eine
+        // "essbar"-Freigabe zurueckgestuft. Messbefund 19.09.2026: das Modell
+        // gibt giftige Arten als essbar frei, die Konfidenz verraet das nicht --
+        // die giftige Alternative in den Top-3 schon.
+        val toxicAlternative = ranked.firstOrNull { it.verdict == "giftig" }
+        // Zweites, breiteres Signal: die Gattung. Die schlimmsten Fehlfreigaben
+        // fuehren Knollenblaetterpilze in die Top-3, aber als *essbare*
+        // (Amanita_ceciliae) -- das Verdict sieht das nicht, die Gattung schon.
+        // Nur Hinweis, keine Blockade: als Blockade gemessen kostet die Regel
+        // die Haelfte der Freigaben.
+        val toxicGenus = ToxicGenus.firstRisky(ranked.map { it.scientific }, riskyGenera)
+        val decision = VerdictPolicy.decide(
+            best?.verdict,
+            bestProbability,
+            hint,
+            toxicAlternative?.germanName,
+            toxicGenus,
+        )
+        val view = ResultFormatter.format(ranked, decision)
+
+        runOnUiThread {
+            fieldMode.onAnalysisFinished()
+            render(view)
+            recordHistory(best, bestProbability, decision, hint != null)
+            showFrozenControls()
+        }
+    }
+
+    private fun onAnalysisFailed(message: String) {
+        fieldMode.onAnalysisFinished()
+        binding.resultHeadline.text = getString(R.string.inference_failed, message)
+        binding.statusDetail.visibility = View.GONE
+        ViewStyling.fillOf(this, binding.statusPill, color(R.color.verdict_danger))
+        binding.resultSheet.visibility = View.GONE
+        binding.frozenChips.visibility = View.VISIBLE
+        showFrozenControls()
     }
 
     /** Ergebnis-Sheet im Wald-Look: Marke, Artname, Warnkarte, Top-3, Notfall. */
@@ -638,8 +800,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Live quality pass: no model, just enough to tell the user to move closer,
-     * add light or hold still. Never touches the frozen result.
+     * Live quality pass plus, while the ring is held, the viewpoint sampling.
+     *
+     * No video is retained: every sampled frame is reduced to a mask coverage,
+     * a sharpness and — once for each of the three views — one probability
+     * vector, then released. The frozen Bitmap is only set at the end.
      */
     private fun analyseQuality(proxy: ImageProxy) {
         try {
@@ -654,14 +819,22 @@ class MainActivity : AppCompatActivity() {
             }
             val quality = FrameQualityAnalyzer.analyze(gray, 224, 224)
             val hint = FrameQualityPolicy.hint(quality)
+
+            // Ansichten werden nur gesammelt, solange der Ring gedrueckt ist.
+            if (fieldMode.state == FieldMode.SCANNING) sampleViews(bitmap)
+
             runOnUiThread {
                 if (!fieldMode.acceptsQualityUpdates) return@runOnUiThread
                 binding.qualityHint.visibility = View.VISIBLE
-                binding.qualityHint.text = when (hint) {
-                    QualityHint.DARK -> getString(R.string.hint_dark)
-                    QualityHint.BRIGHT -> getString(R.string.hint_bright)
-                    QualityHint.BLURRY -> getString(R.string.hint_blurry)
-                    QualityHint.OK -> getString(R.string.hint_ok)
+                // Waehrend des Sammelns bleibt die Sammelanweisung stehen: sie
+                // ist die Handlungsanweisung, die der Nutzer gerade befolgt.
+                if (fieldMode.state != FieldMode.SCANNING) {
+                    binding.qualityHint.text = when (hint) {
+                        QualityHint.DARK -> getString(R.string.hint_dark)
+                        QualityHint.BRIGHT -> getString(R.string.hint_bright)
+                        QualityHint.BLURRY -> getString(R.string.hint_blurry)
+                        QualityHint.OK -> getString(R.string.hint_ok)
+                    }
                 }
                 binding.targetFrame.alpha = if (hint == QualityHint.OK) 1f else 0.55f
             }
@@ -669,6 +842,45 @@ class MainActivity : AppCompatActivity() {
             // A dropped quality frame must never disturb the frozen result.
         } finally {
             proxy.close()
+        }
+    }
+
+    /**
+     * Ein Sampledurchlauf: Segmentierer-Evidenz, und fuer jede neu belegte
+     * Ansicht genau ein Wahrscheinlichkeitsvektor des Artenmodells.
+     *
+     * Laeuft auf dem Quality-Executor, greift aber nur auf den Accumulator zu,
+     * der selbst nicht threadsicher sein muss, weil dieser Executor ein
+     * einzelner Thread ist.
+     */
+    private fun sampleViews(bitmap: Bitmap) {
+        val frameId = viewFrameCounter.incrementAndGet()
+        val evidence = segmenter.evidenceFor(bitmap, frameId)
+        if (evidence.isEmpty()) return
+        for (item in evidence) {
+            val progress = viewAccumulator.accept(item)
+            // Nur wenn diese Ansicht neu oder besser belegt wurde, lohnt der
+            // Modellaufruf: der Konsens braucht je Ansicht genau einen Vektor.
+            val isSelected = viewAccumulator.best(item.step)?.frameId == item.frameId
+            if (isSelected) {
+                try {
+                    consensus?.add(item.step, speciesProbabilities(bitmap))
+                } catch (e: Exception) {
+                    // Eine fehlgeschlagene Artbestimmung darf das Sammeln nicht
+                    // vergiften; der Konsens bleibt dann unvollstaendig und es
+                    // gibt kein Ergebnis.
+                }
+            }
+            runOnUiThread { renderViewRows(progress) }
+            if (progress.complete) {
+                runOnUiThread {
+                    if (fieldMode.state == FieldMode.SCANNING) {
+                        frozen = bitmap
+                        completeScan()
+                    }
+                }
+                return
+            }
         }
     }
 
@@ -707,6 +919,38 @@ class MainActivity : AppCompatActivity() {
         return out
     }
 
+    /**
+     * Laedt den Ansichts-Segmentierer, falls das Asset ausgeliefert ist.
+     *
+     * Fail closed statt Absturz: fehlt `viewpoint.tflite` oder passt sein
+     * Kanalvertrag nicht, bleibt `segmenter.available` false. Die App laeuft
+     * dann weiter, kann aber keine Ansicht belegen und zeigt kein Ergebnis —
+     * genau das ist gewollt (Spec 2026-09-24: „Der Flow scheitert geschlossen,
+     * falls viewpoint.tflite, sein Vertrag oder der Artenkonsens fehlt“).
+     *
+     * Ein fehlendes Prototyp-Asset darf die bestehende Einzelbild-Installation
+     * nicht lahmlegen, deshalb wird hier nichts geworfen.
+     */
+    private fun loadViewpointModel() {
+        segmenter = try {
+            val descriptor = assets.openFd(VIEWPOINT_ASSET)
+            val stream = FileInputStream(descriptor.fileDescriptor)
+            val mapped = stream.channel.map(
+                FileChannel.MapMode.READ_ONLY,
+                descriptor.startOffset,
+                descriptor.declaredLength,
+            )
+            val viewpoint = Interpreter(mapped)
+            val channels = viewpoint.getOutputTensor(0).shape().lastOrNull() ?: 0
+            val vShape = viewpoint.getInputTensor(0).shape()
+            // Der Konstruktor prueft den Kanalvertrag selbst und schliesst
+            // geschlossen, wenn das Asset nicht passt.
+            ViewpointSegmenter(viewpoint, vShape[2], vShape[1], channels)
+        } catch (e: Exception) {
+            ViewpointSegmenter(null, 0, 0, 0)
+        }
+    }
+
     private fun loadModelFile(): MappedByteBuffer {
         val descriptor = assets.openFd("model.tflite")
         val stream = FileInputStream(descriptor.fileDescriptor)
@@ -717,10 +961,27 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    /**
+     * Kein Ergebnis und kein Sammelvorgang darf einen Hintergrundwechsel
+     * ueberleben: alle temporaeren Ansichtsreferenzen und der Konsens werden
+     * hier verworfen.
+     */
+    override fun onStop() {
+        super.onStop()
+        viewAccumulator.cancel()
+        consensus = if (labels.isEmpty()) null else SpeciesConsensus(labels.size)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        viewAccumulator.cancel()
         inferenceExecutor.shutdown()
         qualityExecutor.shutdown()
         interpreter?.close()
+    }
+
+    private companion object {
+        /** Asset des Mehransichten-Prototyps; nicht Teil der Einzelbild-Auslieferung. */
+        const val VIEWPOINT_ASSET = "viewpoint.tflite"
     }
 }

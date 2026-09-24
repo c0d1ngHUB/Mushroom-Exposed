@@ -68,7 +68,7 @@
         app:layout_constraintBottom_toTopOf="@id/targetFrame"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:text="Gut — auslösen" />
+        tools:text="Pilz vollständig im Rahmen" />
 
     <!-- Statuspille: Bereit, Verwechslungsdaten, Fehlermeldungen. -->
     <LinearLayout
@@ -146,7 +146,58 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Steuerleiste im Live-Sucher: Licht, grosser Ausloeser, Verlauf. -->
+    <!-- Die drei Ansichtszeilen: das einzige dynamische Element im Live-Sucher.
+         Eine Zeile wird erst gefuellt, wenn der ViewAccumulator eine belegte
+         Ansicht akzeptiert hat. Reihenfolge ist bindend: Hut, Unterseite,
+         Stiel / Ring. -->
+    <LinearLayout
+        android:id="@+id/viewRows"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@id/controls"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/viewCap"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/row_min_height"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/bg_view_row"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:text="@string/view_show_cap"
+            android:textColor="@color/ink"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/viewUnderside"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/row_min_height"
+            android:layout_marginBottom="6dp"
+            android:background="@drawable/bg_view_row"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:text="@string/view_show_underside"
+            android:textColor="@color/ink"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/viewStipeRing"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/row_min_height"
+            android:background="@drawable/bg_view_row"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:text="@string/view_show_stipe_ring"
+            android:textColor="@color/ink"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Steuerleiste im Live-Sucher: Licht, Sammelring, Verlauf. -->
     <!-- Die Gruppe ist an beide Seiten gebunden und zentriert ihren Inhalt:
          ohne die Zentrierung klebte der Ausloeser 73 dp links der Mitte. -->
     <LinearLayout

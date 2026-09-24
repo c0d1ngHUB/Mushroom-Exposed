@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Eine belegte Ansichtszeile.
+
+    Die Moos-Marke bedeutet hier ausschliesslich: "diese Bildansicht wurde
+    ausreichend erfasst". Sie ist keine Bestimmung und keine Verzehrfreigabe;
+    deshalb ist es die einzige Stelle im Live-Sucher, die ueberhaupt gruen wird.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/verdict_safe_tint" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:width="4dp" android:gravity="left">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/moss" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+</layer-list>

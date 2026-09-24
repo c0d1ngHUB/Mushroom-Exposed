@@ -1,39 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Runder Ausloeser: Waldgruen, innen ein weisser Ring als Zielmarke. -->
+<!--
+    Der Sammelring: neutrale Papiermarke mit Tintenring.
+
+    Bewusst kein gruen gefuellter "Go"-Knopf. Gruen in dieser App bedeutet
+    ausschliesslich "diese Bildansicht wurde ausreichend erfasst"; der
+    Ausloeser selbst darf keine Freigabeoptik tragen (Spec 2026-09-24,
+    Abschnitt "Sichtbare Fuehrung").
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/forest" />
+            <solid android:color="@color/ink" />
         </shape>
     </item>
     <item
-        android:left="8dp"
-        android:top="8dp"
-        android:right="8dp"
-        android:bottom="8dp">
+        android:left="6dp"
+        android:top="6dp"
+        android:right="6dp"
+        android:bottom="6dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/paper" />
+        </shape>
+    </item>
+    <item
+        android:left="10dp"
+        android:top="10dp"
+        android:right="10dp"
+        android:bottom="10dp">
         <shape android:shape="oval">
             <stroke
                 android:width="3dp"
-                android:color="#F2FFFFFF" />
+                android:color="@color/ink" />
             <solid android:color="#00000000" />
-        </shape>
-    </item>
-    <item
-        android:left="16dp"
-        android:top="16dp"
-        android:right="16dp"
-        android:bottom="16dp">
-        <shape android:shape="oval">
-            <solid android:color="#FFFFFFFF" />
-        </shape>
-    </item>
-    <item
-        android:left="22dp"
-        android:top="22dp"
-        android:right="22dp"
-        android:bottom="22dp">
-        <shape android:shape="oval">
-            <solid android:color="@color/forest" />
         </shape>
     </item>
 </layer-list>
