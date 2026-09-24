@@ -1,7 +1,7 @@
 package com.example.mushroomexposed
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,11 +16,11 @@ class ResultFormatterTest {
     fun `headline carries the name and the subline the confidence`() {
         val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
 
-        assertEquals("essbar — Steinpilz", view.headline)
+        assertEquals("Verzehr nicht bewertbar — Steinpilz", view.headline)
         assertEquals("Boletus edulis · 71 %", view.subline)
         assertEquals("Steinpilz", view.name)
-        assertEquals(VerdictTone.SAFE, view.tone)
-        assertNull(view.emergency)
+        assertEquals(VerdictTone.CAUTION, view.tone)
+        assertEquals(ResultFormatter.EMERGENCY_TEXT, view.emergency)
     }
 
     @Test
@@ -89,17 +89,17 @@ class ResultFormatterTest {
     }
 
     @Test
-    fun `a safe verdict carries no emergency contacts block`() {
+    fun `high confidence edible prediction carries the caution emergency block`() {
         val view = ResultFormatter.format(ranked, VerdictPolicy.decide("essbar", 0.71f))
 
-        assertNull(view.emergency)
+        assertEquals(ResultFormatter.EMERGENCY_TEXT, view.emergency)
     }
 
     @Test
     fun `empty ranking falls back to the policy headline`() {
         val view = ResultFormatter.format(emptyList(), VerdictPolicy.decide(null, 0f))
 
-        assertEquals("unsicher", view.headline)
+        assertEquals("Verzehr nicht bewertbar", view.headline)
         assertEquals("", view.subline)
         assertEquals(emptyList<String>(), view.topLines)
         assertEquals(emptyList<TopRow>(), view.tops)

@@ -75,16 +75,16 @@ object VerdictPolicy {
                 warning = "${decision.warning} ${lookalikeSentence(lookalike)}",
             )
         }
-        // Nur eine tatsaechliche Freigabe wird zurueckgestuft. "GIFTIG !!" und
-        // "nicht bewertet"/"unsicher" bleiben unveraendert: dort ist der Ton
-        // schon warnend und ein zweiter Satz wuerde nur widersprechen.
-        if (toxicAlternative != null && decision.headline == "essbar") {
+        // Giftige Alternativen bleiben bei jedem nicht-giftigen Befund sichtbar.
+        // Seit die App keinen Verzehr freigibt, gibt es keinen separaten
+        // "essbar"-Zweig mehr, an den die Warnung gebunden sein koennte.
+        if (toxicAlternative != null && decision.tone != VerdictTone.DANGER) {
             decision = decision.copy(
                 tone = VerdictTone.CAUTION,
                 warning = "${decision.warning} ${toxicAlternativeSentence(toxicAlternative)}",
             )
         }
-        if (toxicGenus != null && decision.headline == "essbar") {
+        if (toxicGenus != null && decision.tone != VerdictTone.DANGER) {
             decision = decision.copy(
                 tone = VerdictTone.CAUTION,
                 warning = "${decision.warning} ${toxicGenusSentence(toxicGenus)}",
@@ -99,24 +99,10 @@ object VerdictPolicy {
             warning = "Nicht verzehren. Im Zweifel Pilzberatung fragen.",
             tone = VerdictTone.DANGER,
         )
-        verdict == "essbar" && confidence >= CONFIDENCE_THRESHOLD -> VerdictDecision(
-            headline = "essbar",
-            warning = "Nur bei sicherer Bestimmung essen — nie auf App verlassen.",
-            tone = VerdictTone.SAFE,
-        )
-        verdict == "essbar" -> VerdictDecision(
-            headline = "unsicher — nicht essen",
-            warning = "Zu unsicher für eine Freigabe — Pilzberatung fragen.",
-            tone = VerdictTone.CAUTION,
-        )
-        confidence >= CONFIDENCE_THRESHOLD -> VerdictDecision(
-            headline = "nicht bewertet",
-            warning = "Verzehr-Einschätzung unbekannt — Pilzberatung fragen.",
-            tone = VerdictTone.CAUTION,
-        )
         else -> VerdictDecision(
-            headline = "unsicher",
-            warning = "Verzehr-Einschätzung unbekannt — Pilzberatung fragen.",
+            headline = "Verzehr nicht bewertbar",
+            warning = "Die App kann den Verzehr nicht bewerten — nie auf die App verlassen; " +
+                "Pilzberatung fragen.",
             tone = VerdictTone.CAUTION,
         )
     }
