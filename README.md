@@ -5,8 +5,15 @@ An Android app for automatic mushroom identification via video using CameraX and
 ## Features
 
 - Field mode: live preview with a centre target frame and quality hints ("mehr Licht",
-  "näher heran / ruhig halten"), a shutter button that freezes one frame and analyses it.
-  The result stays on screen until the next press — no flickering live lines.
+  "näher heran / ruhig halten"). **Hold-to-scan**: holding the ring collects three
+  verified views one after another — Hut, Unterseite, Stiel / Ring — and each is
+  ticked off visibly as it is captured. Only when all three are covered does the app
+  analyse, freeze the frame and show one result. Releasing early cancels without
+  leaving a result, a history entry or a file.
+- Multi-view consensus: the three captured views are each run through the species
+  model and their probability vectors are combined as a geometric mean in log space,
+  so one confident view cannot outvote two weak ones. The conservative `VerdictPolicy`
+  remains the final decision-maker after that.
 - On-device classification of 663 Central-European species with German display names
 - Edibility verdict (essbar / giftig / unbekannt) with a confidence threshold: an
   "essbar" headline is never granted below **60 %** confidence. The threshold was
@@ -58,16 +65,40 @@ ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
 
 ```
 app/src/main/java/com/example/mushroomexposed/
-  MainActivity.kt     camera, shutter/freeze, inference, history UI
-  FieldMode.kt        LIVE/ANALYSING/FROZEN field-mode state machine (unit-tested)
-  VerdictPolicy.kt    edibility decision incl. lookalike override (unit-tested)
-  ResultFormatter.kt  result card formatting (unit-tested)
-  FrameQuality.kt     luminance / sharpness / overexposure hints (unit-tested)
-  LookalikeData.kt    parser for assets/lookalikes.txt (unit-tested)
-  History.kt          append-only JSONL history store, cap 200 (unit-tested)
-  ModelContract.kt    model/label class-count guard
-  ToxicGenus.kt       warning-genus detection from labels.txt (unit-tested)
+  MainActivity.kt          camera, hold-to-scan, inference, history UI
+  FieldMode.kt             LIVE/SCANNING/ANALYSING/FROZEN state machine (unit-tested)
+  ViewAccumulator.kt       keeps the best accepted evidence per view (unit-tested)
+  ViewpointContract.kt     fixed six-channel segmenter contract (unit-tested)
+  ViewpointSegmenter.kt    frame -> per-view mask coverage + sharpness
+  SpeciesConsensus.kt      log-space geometric mean over the three views (unit-tested)
+  VerdictPolicy.kt         edibility decision incl. lookalike override (unit-tested)
+  ResultFormatter.kt       result card formatting (unit-tested)
+  FrameQuality.kt          luminance / sharpness / overexposure hints (unit-tested)
+  LookalikeData.kt         parser for assets/lookalikes.txt (unit-tested)
+  History.kt               append-only JSONL history store, cap 200 (unit-tested)
+  ReferenceImageStore.kt   bounded local reference JPEGs (unit-tested)
+  ModelContract.kt         model/label class-count guard
+  ToxicGenus.kt            warning-genus detection from labels.txt (unit-tested)
 ```
+
+## Noncommercial multi-view prototype
+
+The multi-view path adds a viewpoint segmenter (`viewpoint.tflite`) that is trained
+on **FungiTastic-M**, licensed **CC BY-NC-SA 4.0**. That licence forbids commercial
+use, so this prototype and any APK built from it are a **nichtkommerzieller
+Prototyp** — noncommercial only, attribution required, derivatives under the same
+terms. Full text: `app/src/main/assets/NOTICE.txt`.
+
+**That asset is not shipped.** `app/src/main/assets/` holds no `viewpoint.tflite`
+yet, because the segmenter gate has not passed. The app is built to fail closed in
+exactly that state: `MainActivity.loadViewpointModel()` leaves the segmenter
+unavailable, starting a scan refuses with *"Ansichtserkennung nicht verfügbar"*,
+no view row can ever be marked captured and no consensus can form. A missing asset
+produces no green state — it produces no result.
+
+The acceptance thresholds for a captured view (`ViewAcceptance`) belong to the
+evaluated model configuration, not to the UI code, and cannot be calibrated before
+that model exists. They are therefore deliberately not invented here.
 
 ## Release state
 

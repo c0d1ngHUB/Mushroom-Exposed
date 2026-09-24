@@ -1,0 +1,33 @@
+Mushroom Exposed — Herkunft der Assets
+=====================================
+
+Dieses Verzeichnis enthaelt die Modell- und Datendateien der App.
+
+model.tflite, labels.txt, lookalikes.txt
+----------------------------------------
+Erzeugt vom Repository Mushroom-Exposed-training
+(src/verify_and_stage.py staged sie). Trainingsdaten stammen aus:
+
+  - FungiTastic-M (Kamp et al.), lizenziert unter CC BY-NC-SA 4.0.
+    Die Lizenz erlaubt keine kommerzielle Nutzung und verlangt
+    Namensnennung sowie Weitergabe unter gleichen Bedingungen.
+  - GBIF-Vorkommen (siehe Trainings-Repo, gb_dataset/), offen lizenziert.
+
+Mehransichten-Prototyp (viewpoint.tflite)
+-----------------------------------------
+Es gibt noch KEIN viewpoint.tflite in den Assets. Der Mehransichten-Prototyp
+der App ist deshalb ein **nichtkommerzieller Prototyp**: er basiert auf
+FungiTastic-M und darf so lange nicht kommerziell vertrieben werden, wie
+dieses Asset enthalten ist.
+
+Sobald ein Segmentierer-Asset ausgeliefert wird, gilt fuer dieses Repository
+und jede APK daraus:
+
+  - Nutzung ausschliesslich nicht kommerziell.
+  - Nennung von FungiTastic-M und der Lizenz CC BY-NC-SA 4.0.
+  - Weitergabe abgeleiteter Werke unter denselben Bedingungen.
+
+Bewusste Konsequenz der App-Seite: fehlt viewpoint.tflite oder passt sein
+Kanalvertrag nicht, zeigt die App keine Ansicht als erfasst und bildet keinen
+Artenkonsens. Der Flow scheitert geschlossen, statt ein Ergebnis ohne Beleg
+zu zeigen. Siehe ViewpointContract.kt und MainActivity.loadViewpointModel().
