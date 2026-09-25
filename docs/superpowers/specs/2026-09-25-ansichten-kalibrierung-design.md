@@ -1,7 +1,7 @@
 # Zuverlässige Drei-Ansichten-Erfassung — Design
 
 Datum: 2026-09-25
-Status: Entwurf zur schriftlichen Freigabe durch Markus
+Status: von Markus freigegeben am 2026-09-25
 
 ## Ziel und Abgrenzung
 
