@@ -85,6 +85,12 @@ class ViewpointSegmenter(
      * Poren-Treffer belegt genau die Unterseite, ein Stiel- oder Ring-Treffer
      * genau Stiel / Ring, ein Hut-Treffer genau den Hut.
      *
+     * Eine Ansicht wird nur Kandidat, wenn mindestens einer ihrer eigenen
+     * Kanäle seine eigene Mindestfläche erreicht. Die größte **qualifizierte**
+     * eigene Fläche bestimmt den Evidenzwert; fremde Kanäle werden mit ihren
+     * tatsächlichen Flächen verglichen, auch wenn sie für ihre eigene Ansicht
+     * nicht qualifizieren.
+     *
      * `competingCoverage` ist der stärkste **fremde** Teilkanal desselben
      * Frames. Der eigene Kanal zählt nicht mit — bei der Unterseite sind
      * Lamellen und Poren beide „eigen", sodass ihr Wettbewerber der Hut oder
@@ -94,23 +100,64 @@ class ViewpointSegmenter(
     fun evidenceFor(bitmap: Bitmap, frameId: Long): List<ViewEvidence> {
         val masks = masksFor(bitmap) ?: return emptyList()
         val sharpness = normalisedSharpness(bitmap)
+        return evidenceFor(masks, sharpness, frameId)
+    }
 
-        val cap = coverage(masks[ViewpointContract.CHANNEL_CAP], ViewpointChannel.CAP)
-        val gills = coverage(masks[ViewpointContract.CHANNEL_GILLS], ViewpointChannel.GILLS)
-        val pores = coverage(masks[ViewpointContract.CHANNEL_PORES], ViewpointChannel.PORES)
-        val stipe = coverage(masks[ViewpointContract.CHANNEL_STIPE], ViewpointChannel.STIPE)
-        val ring = coverage(masks[ViewpointContract.CHANNEL_RING], ViewpointChannel.RING)
+    /**
+     * Testbarer Kern von [evidenceFor]: nimmt bereits ausgepackte Masken und
+     * eine vorberechnete Schärfe. v2-Modus filtert die eigenen Kanäle auf ihre
+     * eigene Mindestfläche; v1-Modus (keine `channelPoints`) bleibt beim alten
+     * Verhalten `coverage > 0` mit fester Maskenaktivierung `MASK_ON`.
+     */
+    internal fun evidenceFor(masks: Array<FloatArray>, sharpness: Float, frameId: Long): List<ViewEvidence> {
+        val coverage = { channel: ViewpointChannel ->
+            coverage(masks[channel.index], channel)
+        }
 
-        val underside = maxOf(gills, pores)
-        val stipeRing = maxOf(stipe, ring)
+        val cap = coverage(ViewpointChannel.CAP)
+        val gills = coverage(ViewpointChannel.GILLS)
+        val pores = coverage(ViewpointChannel.PORES)
+        val stipe = coverage(ViewpointChannel.STIPE)
+        val ring = coverage(ViewpointChannel.RING)
+
+        val foreignForCap = maxOf(undersideMax(gills, pores), stipeRingMax(stipe, ring))
+        val foreignForUnderside = maxOf(cap, stipeRingMax(stipe, ring))
+        val foreignForStipeRing = maxOf(cap, undersideMax(gills, pores))
 
         return buildList {
-            if (cap > 0f) add(ViewEvidence(ViewStep.CAP, cap, sharpness, frameId, maxOf(underside, stipeRing)))
-            // Unterseite: Lamellen ODER Poren, nicht beides noetig.
-            if (underside > 0f) add(ViewEvidence(ViewStep.UNDERSIDE, underside, sharpness, frameId, maxOf(cap, stipeRing)))
-            // Stiel / Ring; die unterste Stielzone ist bewusst keine eigene
-            // Ansicht, weil die Datenquelle sie nicht verlaesslich abdeckt.
-            if (stipeRing > 0f) add(ViewEvidence(ViewStep.STIPE_RING, stipeRing, sharpness, frameId, maxOf(cap, underside)))
+            qualifiedEvidence(ViewStep.CAP, listOf(ViewpointChannel.CAP), coverage, foreignForCap, sharpness, frameId)?.let(::add)
+            qualifiedEvidence(ViewStep.UNDERSIDE, listOf(ViewpointChannel.GILLS, ViewpointChannel.PORES), coverage, foreignForUnderside, sharpness, frameId)?.let(::add)
+            qualifiedEvidence(ViewStep.STIPE_RING, listOf(ViewpointChannel.STIPE, ViewpointChannel.RING), coverage, foreignForStipeRing, sharpness, frameId)?.let(::add)
+        }
+    }
+
+    private fun undersideMax(gills: Float, pores: Float): Float =
+        if (acceptance?.channelPoints == null) maxOf(gills, pores) else maxOf(gills, pores)
+
+    private fun stipeRingMax(stipe: Float, ring: Float): Float =
+        if (acceptance?.channelPoints == null) maxOf(stipe, ring) else maxOf(stipe, ring)
+
+    /**
+     * Erzeugt Evidenz für eine Ansicht, wenn mindestens ein eigener Kanal seine
+     * eigene Flächenschwelle erreicht. Im v1-Fall (keine per-channel Punkte)
+     * genügt jede positive Abdeckung.
+     */
+    private fun qualifiedEvidence(
+        step: ViewStep,
+        ownChannels: List<ViewpointChannel>,
+        coverage: (ViewpointChannel) -> Float,
+        foreignMax: Float,
+        sharpness: Float,
+        frameId: Long,
+    ): ViewEvidence? {
+        val points = acceptance?.channelPoints
+        return if (points == null) {
+            val best = ownChannels.maxOf { coverage(it) }
+            if (best > 0f) ViewEvidence(step, best, sharpness, frameId, foreignMax) else null
+        } else {
+            val eligible = ownChannels.filter { coverage(it) >= points.getValue(it).area }
+            if (eligible.isEmpty()) return null
+            ViewEvidence(step, eligible.maxOf { coverage(it) }, sharpness, frameId, foreignMax)
         }
     }
 
@@ -118,6 +165,15 @@ class ViewpointSegmenter(
         val tau = acceptance?.channelPoints?.get(channel)?.tau ?: MASK_ON
         return (mask.count { it > tau }.toFloat() / mask.size)
     }
+
+    private val ViewpointChannel.index: Int
+        get() = when (this) {
+            ViewpointChannel.CAP -> ViewpointContract.CHANNEL_CAP
+            ViewpointChannel.GILLS -> ViewpointContract.CHANNEL_GILLS
+            ViewpointChannel.PORES -> ViewpointContract.CHANNEL_PORES
+            ViewpointChannel.STIPE -> ViewpointContract.CHANNEL_STIPE
+            ViewpointChannel.RING -> ViewpointContract.CHANNEL_RING
+        }
 
     /** Laplace-Varianz wie im Qualitaetspfad, normiert auf 0..1. */
     private fun normalisedSharpness(bitmap: Bitmap): Float {

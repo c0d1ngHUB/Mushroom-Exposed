@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Reproducible Python golden for the three Android runtime parity frames.
+
+All frames come from FungiTastic-Mini train/300p (CC BY-NC-SA 4.0) and are
+locally excluded from the MIT app repo. Run this script in the training
+worktree to (re-)generate the numbers pinned in ViewpointRuntimeTest.
+"""
 import json, sys, hashlib, shutil
 from pathlib import Path
 import numpy as np
@@ -13,62 +19,116 @@ from src.viewpoint_model import PartSegmenter, PART_NAMES, to_app_nhwc
 from src.measure_viewpoint_views import sharpness_for_rgb224
 from src.viewpoint_operating_point import frame_flags
 
-# v2 operating point from Task 3 report
-tau_by_channel = {"cap":0.3, "gills":0.5, "pores":0.5, "stipe":0.3, "ring":0.3}
-min_coverage_by_channel = {"cap":0.002, "gills":0.01, "pores":0.003, "stipe":0.001, "ring":0.001}
-dominance_by_view = {"cap":1.0, "underside":0.0, "stipe_ring":0.0}
+# v2 operating point from Task 3 report.
+tau_by_channel = {"cap": 0.3, "gills": 0.5, "pores": 0.5, "stipe": 0.3, "ring": 0.3}
+min_coverage_by_channel = {"cap": 0.002, "gills": 0.01, "pores": 0.003, "stipe": 0.001, "ring": 0.001}
+dominance_by_view = {"cap": 1.0, "underside": 0.0, "stipe_ring": 0.0}
 min_sharpness = 0.05
 
-filename = '0-2237852161.JPG'
-img_path = DATA / 'train/300p' / filename
-img = Image.open(img_path).convert('RGB')
-orig_size = img.size
-resized = img.resize((300,300), Image.BILINEAR)
-arr = np.asarray(resized, dtype=np.float32) / 255.0
-tensor = torch.from_numpy(arr).permute(2,0,1).unsqueeze(0)
+FRAMES = [
+    {
+        # Positive parity frame: all three views accepted.
+        "source": DATA / 'train/300p' / '0-2237852161.JPG',
+        "asset": 'viewpoint_real_frame.jpg',
+        "observation_id": '2237852161',
+    },
+    {
+        # Low sharpness: every view rejected by the global sharpness floor.
+        "source": DATA / 'train/300p' / '3-3126950317.JPG',
+        "asset": '3-3126950317_frame.jpg',
+        "observation_id": '3126950317',
+    },
+    {
+        # Dominance/floor rejection: cap rejected because gills dominates and stipe_ring floor not met.
+        "source": DATA / 'train/300p' / '0-3313851318.JPG',
+        "asset": '0-3313851318_frame.jpg',
+        "observation_id": '3313851318',
+    },
+]
 
-model = PartSegmenter()
-ckpt = torch.load(ROOT / 'out/viewpoint/runs/skip-300-seed42/checkpoint.pt', map_location='cpu', weights_only=False)
-model.load_state_dict(ckpt)
-model.eval()
-with torch.no_grad():
-    logits = model(tensor)
-probs_nhwc = to_app_nhwc(logits).numpy()
-probs = probs_nhwc[0]
 
-taus_needed = set(tau_by_channel.values())
-coverages = {}
-for tau in taus_needed:
-    c = np.zeros(len(PART_NAMES))
+def analyze(path: Path):
+    img = Image.open(path).convert('RGB')
+    orig_size = img.size
+    resized = img.resize((300, 300), Image.BILINEAR)
+    arr = np.asarray(resized, dtype=np.float32) / 255.0
+    tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
+    model = PartSegmenter()
+    ckpt = torch.load(ROOT / 'out/viewpoint/runs/skip-300-seed42/checkpoint.pt', map_location='cpu', weights_only=False)
+    model.load_state_dict(ckpt)
+    model.eval()
+    with torch.no_grad():
+        logits = model(tensor)
+    probs_nhwc = to_app_nhwc(logits).numpy()
+    probs = probs_nhwc[0]
+
+    distinct_taus = sorted(set(tau_by_channel.values()))
+    coverages = {}
     total = probs.shape[0] * probs.shape[1]
-    for i, name in enumerate(PART_NAMES):
-        c[i] = np.count_nonzero(probs[:,:,i] > tau) / total
-    coverages[tau] = c.reshape(1, -1)
+    for tau in distinct_taus:
+        c = np.zeros(len(PART_NAMES))
+        for i, name in enumerate(PART_NAMES):
+            c[i] = np.count_nonzero(probs[:, :, i] > tau) / total
+        coverages[tau] = c.reshape(1, -1)
 
-sharp = sharpness_for_rgb224(np.asarray(resized))
+    sharp = sharpness_for_rgb224(np.asarray(resized))
+    flags = frame_flags(
+        coverages=coverages,
+        tau_by_channel=tau_by_channel,
+        min_coverage_by_channel=min_coverage_by_channel,
+        dominance_by_view=dominance_by_view,
+        sharpness=np.array([sharp]),
+        min_sharpness=min_sharpness,
+    )
 
-flags = frame_flags(
-    coverages=coverages,
-    tau_by_channel=tau_by_channel,
-    min_coverage_by_channel=min_coverage_by_channel,
-    dominance_by_view=dominance_by_view,
-    sharpness=np.array([sharp]),
-    min_sharpness=min_sharpness,
-)
+    channel_coverages = {}
+    for name in PART_NAMES:
+        if name == 'background':
+            continue
+        tau = tau_by_channel.get(name, 0.5)
+        idx = PART_NAMES.index(name)
+        channel_coverages[name] = float(coverages[tau][0, idx])
+    return {
+        "orig_size": orig_size,
+        "probs_shape": probs.shape,
+        "sharpness": float(sharp),
+        "channel_coverages": channel_coverages,
+        "flags": {k: bool(v[0]) for k, v in flags.items()},
+    }
 
-print('filename', filename)
-print('orig_size', orig_size)
-print('probs shape', probs.shape)
-print('sharpness', sharp)
-print('channel coverages (tau-specific):')
-for name in PART_NAMES:
-    tau = tau_by_channel.get(name, 0.5)
-    idx = PART_NAMES.index(name)
-    print(f'  {name} tau={tau} coverage={coverages[tau][0,idx]:.6f}')
-print('flags', {k: bool(v[0]) for k,v in flags.items()})
 
-out_dir = Path('/home/m3kky/projects/Mushroom-Exposed/.worktrees/feat-viewpoint-operating-point/app/src/androidTest/assets')
-out_dir.mkdir(parents=True, exist_ok=True)
-shutil.copy(img_path, out_dir / 'viewpoint_real_frame.png')
-print('copied to', out_dir / 'viewpoint_real_frame.png')
-print('asset sha256', hashlib.sha256((out_dir/'viewpoint_real_frame.png').read_bytes()).hexdigest())
+def main():
+    out_dir = Path('/home/m3kky/projects/Mushroom-Exposed/.worktrees/feat-viewpoint-operating-point/app/src/androidTest/assets')
+    out_dir.mkdir(parents=True, exist_ok=True)
+    report = {
+        "checkpoint": str(ROOT / 'out/viewpoint/runs/skip-300-seed42/checkpoint.pt'),
+        "model_run_id": "skip-300-seed42",
+        "tau_by_channel": tau_by_channel,
+        "min_coverage_by_channel": min_coverage_by_channel,
+        "dominance_by_view": dominance_by_view,
+        "min_sharpness": min_sharpness,
+        "frames": {},
+    }
+    for entry in FRAMES:
+        src = entry["source"]
+        asset_name = entry["asset"]
+        print(f'\n--- {asset_name} ---')
+        result = analyze(src)
+        print(json.dumps(result, indent=2))
+        report["frames"][asset_name] = {
+            "source": str(src),
+            "observation_id": entry["observation_id"],
+            **result,
+            "sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+        }
+        dst = out_dir / asset_name
+        shutil.copy(src, dst)
+        print(f'copied to {dst}')
+        print(f'asset sha256 {hashlib.sha256(dst.read_bytes()).hexdigest()}')
+
+    print('\n=== full report ===')
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == '__main__':
+    main()
