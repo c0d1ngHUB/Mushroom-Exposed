@@ -70,6 +70,11 @@ data class ViewAcceptance(
     val minCoverageByStep: Map<ViewStep, Float>,
     val minSharpness: Float,
     val dominanceFactorByStep: Map<ViewStep, Float>,
+    /**
+     * Optional: fünf per-channel Betriebspunkte für v2. Ist das Feld null,
+     * bleibt der Code auf dem v1-Pfad mit fester Maskenaktivierung.
+     */
+    val channelPoints: Map<ViewpointChannel, ChannelOperatingPoint>? = null,
 ) {
     init {
         require(minCoverageByStep.keys.containsAll(ViewStep.entries.toSet())) {
@@ -87,6 +92,11 @@ data class ViewAcceptance(
             "every dominance factor must be >= 0"
         }
         require(minSharpness in 0f..1f) { "minSharpness must be in [0, 1]" }
+        channelPoints?.let { points ->
+            require(points.keys == ViewpointChannel.entries.toSet()) {
+                "channelPoints must contain exactly every ViewpointChannel"
+            }
+        }
     }
 
     /** Evidenzgrenze der genannten Ansicht. */

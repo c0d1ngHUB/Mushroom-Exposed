@@ -25,6 +25,7 @@ class ViewpointSegmenter(
     private val inputWidth: Int,
     private val inputHeight: Int,
     private val outputChannels: Int,
+    private val acceptance: ViewAcceptance? = null,
 ) {
     init {
         // Echter Fail-closed-Check gegen das *Modell*, nicht gegen eine
@@ -94,11 +95,11 @@ class ViewpointSegmenter(
         val masks = masksFor(bitmap) ?: return emptyList()
         val sharpness = normalisedSharpness(bitmap)
 
-        val cap = coverage(masks[ViewpointContract.CHANNEL_CAP])
-        val gills = coverage(masks[ViewpointContract.CHANNEL_GILLS])
-        val pores = coverage(masks[ViewpointContract.CHANNEL_PORES])
-        val stipe = coverage(masks[ViewpointContract.CHANNEL_STIPE])
-        val ring = coverage(masks[ViewpointContract.CHANNEL_RING])
+        val cap = coverage(masks[ViewpointContract.CHANNEL_CAP], ViewpointChannel.CAP)
+        val gills = coverage(masks[ViewpointContract.CHANNEL_GILLS], ViewpointChannel.GILLS)
+        val pores = coverage(masks[ViewpointContract.CHANNEL_PORES], ViewpointChannel.PORES)
+        val stipe = coverage(masks[ViewpointContract.CHANNEL_STIPE], ViewpointChannel.STIPE)
+        val ring = coverage(masks[ViewpointContract.CHANNEL_RING], ViewpointChannel.RING)
 
         val underside = maxOf(gills, pores)
         val stipeRing = maxOf(stipe, ring)
@@ -113,8 +114,10 @@ class ViewpointSegmenter(
         }
     }
 
-    private fun coverage(mask: FloatArray): Float =
-        (mask.count { it > MASK_ON }.toFloat() / mask.size)
+    private fun coverage(mask: FloatArray, channel: ViewpointChannel): Float {
+        val tau = acceptance?.channelPoints?.get(channel)?.tau ?: MASK_ON
+        return (mask.count { it > tau }.toFloat() / mask.size)
+    }
 
     /** Laplace-Varianz wie im Qualitaetspfad, normiert auf 0..1. */
     private fun normalisedSharpness(bitmap: Bitmap): Float {
