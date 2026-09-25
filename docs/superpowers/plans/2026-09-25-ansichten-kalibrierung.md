@@ -58,10 +58,12 @@ assert flags["cap"].tolist() == [False, False]
 ```
 
 - [ ] **Step 2: Red** — `cd "$TRAIN" && pytest tests/test_viewpoint_operating_point.py -q`; expected ImportError.
-- [ ] **Step 3: Minimal implementation** — per channel `own[c] = mean(mask_probability_c > tau[c])` comes from the passed coverage matrix at that tau. Mark a view only if some own channel **reaches** its own area (`>=`, matching `ViewAccumulator.accept`), AND `max(own) >= dominance[view] * max(all foreign non-background coverages)`, AND sharpness >= 0.05. Check exact channel keys, all finite ranges [0,1], all shapes, and positive denominators; never infer a missing tau grid point.
+- [ ] **Step 3: Minimal implementation** — per channel `own[c] = mean(mask_probability_c > tau[c])` comes from the passed coverage matrix at that tau. Mark a view only if some own channel **reaches** its own area (`>=`, matching `ViewAccumulator.accept`), AND `max(qualified own channels) >= dominance[view] * max(all foreign non-background coverages)`, AND sharpness >= 0.05. Check exact channel keys, all finite ranges [0,1], all shapes, and positive denominators; never infer a missing tau grid point. The approved spec requires the strongest *qualified*, not the strongest raw, own channel; an unqualified sister channel must never pass dominance for the qualified one.
 
 ```python
-qualified = any(float(own[c][i]) >= area[c] for c in channels)
+qualified_channels = [c for c in channels if float(own[c][i]) >= area[c]]
+qualified = bool(qualified_channels)
+own_max = max((float(own[c][i]) for c in qualified_channels), default=0.0)
 flagged[i] = qualified and own_max >= k[view] * foreign_max and sharpness[i] >= min_sharpness
 ```
 
