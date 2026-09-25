@@ -146,12 +146,19 @@ class SystemBarsLayoutTest {
     }
 
     /**
-     * Fail closed: ohne geladenen Segmentierer bleibt der Ausloeser ohne
-     * Wirkung und es entsteht kein gruener Zustand. Das ausgelieferte Asset
-     * enthaelt `viewpoint.tflite` nicht, also ist genau das der Ist-Zustand.
+     * Das ausgelieferte Segmentierer-Asset ist am Geraet wirklich benutzbar.
+     *
+     * Die Unit-Tests pruefen den Vertrag auf der JVM. Ob das Modell auf dem
+     * Geraet laedt und Evidenz mit einer Vergleichsgroesse liefert, entscheidet
+     * sich erst hier: eine falsch geladene TFLite-Datei oder ein
+     * Kanalvertragsfehler wuerde auf der JVM nicht auffallen.
+     *
+     * Geprueft werden zwei Dinge: `available` ist wahr, und jede Evidenz traegt
+     * eine `competingCoverage` — ohne sie koennte der Accumulator die
+     * Hutdominanz nicht anwenden und wuerde jede Ansicht abweisen.
      */
     @Test
-    fun aMissingViewpointModelKeepsTheScanActionUnavailable() {
+    fun aShippedSegmenterIsAvailableAndEmitsEvidenceWithACompetitor() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.uiAutomation.grantRuntimePermission(
             instrumentation.targetContext.packageName,
@@ -164,34 +171,77 @@ class SystemBarsLayoutTest {
                     .apply { isAccessible = true }
                     .get(activity) as ViewpointSegmenter
 
-                assertFalse(
-                    "without viewpoint.tflite the segmenter must report itself unavailable",
+                assertTrue(
+                    "the gated segmenter must load on the device",
                     segmenter.available,
                 )
-                assertTrue(
-                    "an unavailable segmenter must never emit evidence",
-                    segmenter.evidenceFor(
-                        android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888),
-                        1L,
-                    ).isEmpty(),
+
+                // Ein einfarbiges Bild ist kein Pilz; geprueft wird die Form der
+                // Evidenz, nicht ihre Hoehe. Ein leeres Ergebnis waere hier
+                // zulaessig, ein Ergebnis ohne Vergleichsgroesse nicht.
+                val bitmap = android.graphics.Bitmap.createBitmap(
+                    64, 64, android.graphics.Bitmap.Config.ARGB_8888,
+                )
+                for (evidence in segmenter.evidenceFor(bitmap, 1L)) {
+                    assertTrue(
+                        "evidence for ${evidence.step} must carry a competing coverage " +
+                            "in [0, 1], was ${evidence.competingCoverage}",
+                        evidence.competingCoverage in 0f..1f,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Fail closed, an der Maschine: ohne verfuegbare Ansichten faellt ein Druck
+     * auf genau einen Frame zurueck statt einen Sammelvorgang zu starten.
+     *
+     * Gefragt wird die Zustandsmaschine selbst (`viewsAvailable = false`), nicht
+     * die ausgelieferte App: das ausgelieferte Asset **hat** jetzt einen
+     * Segmentierer, der Fehlerfall laesst sich am Geraet also nur noch ueber den
+     * Parameter herstellen. Die Zusicherung, die zaehlt, ist damit erhalten und
+     * sogar schaerfer: sie haengt am gemeldeten Zustand, nicht an der
+     * Abwesenheit einer Datei.
+     */
+    @Test
+    fun withoutAvailableViewsThePressCapturesASingleFrame() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val machine = MainActivity::class.java.getDeclaredField("fieldMode")
+                    .apply { isAccessible = true }
+                    .get(activity) as FieldModeMachine
+
+                assertEquals("the app starts in LIVE", FieldMode.LIVE, machine.state)
+                assertEquals(
+                    "without available views a press is a single capture, not a scan",
+                    FieldModeAction.CAPTURE,
+                    machine.onPrimaryDown(viewsAvailable = false),
+                )
+                assertEquals(
+                    "the frame is analysed immediately, nothing is collected",
+                    FieldMode.ANALYSING,
+                    machine.state,
                 )
             }
         }
     }
 
     /**
-     * Der Rueckfall auf den Einzelbild-Pfad, am echten Objekt.
+     * Mit verfuegbaren Ansichten startet ein Druck den Sammelvorgang.
      *
-     * Ohne Segmentierer ist der Hold-to-scan kein Weg zu einem Ergebnis: die
-     * drei Ansichten koennen nie belegt werden, der Konsens bleibt leer. Ein
-     * Druck muss deshalb auf genau einen Frame zurueckfallen — sonst zeigt die
-     * ausgelieferte App **nie** eine Artenbestimmung.
-     *
-     * Geprueft wird die Zustandsmaschine der Activity, nicht ein Nachbau: sie
-     * ist das Objekt, das der Ausloeser tatsaechlich befragt.
+     * Das ist der ausgelieferte Pfad: der Segmentierer ist da, also fuehrt der
+     * Ausloeser in den Hold-to-scan. Der Gegenfall steht in
+     * `withoutAvailableViewsThePressCapturesASingleFrame`.
      */
     @Test
-    fun aMissingSegmenterMakesThePressCaptureASingleFrame() {
+    fun withAvailableViewsThePressStartsAScan() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.uiAutomation.grantRuntimePermission(
             instrumentation.targetContext.packageName,
@@ -200,23 +250,26 @@ class SystemBarsLayoutTest {
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
-                val field = MainActivity::class.java.getDeclaredField("fieldMode")
+                val machine = MainActivity::class.java.getDeclaredField("fieldMode")
                     .apply { isAccessible = true }
-                val machine = field.get(activity) as FieldModeMachine
+                    .get(activity) as FieldModeMachine
                 val segmenter = MainActivity::class.java.getDeclaredField("segmenter")
                     .apply { isAccessible = true }
                     .get(activity) as ViewpointSegmenter
 
-                assertEquals("the shipped asset has no segmenter", FieldMode.LIVE, machine.state)
-
                 assertEquals(
-                    "without a segmenter a press is a single capture, not a scan",
-                    FieldModeAction.CAPTURE,
+                    "the shipped app has a segmenter, so the scan path is the real one",
+                    true,
+                    segmenter.available,
+                )
+                assertEquals(
+                    "with available views a press starts collecting the three views",
+                    FieldModeAction.START_SCAN,
                     machine.onPrimaryDown(viewsAvailable = segmenter.available),
                 )
                 assertEquals(
-                    "the frame is analysed immediately, nothing is collected",
-                    FieldMode.ANALYSING,
+                    "the machine collects instead of analysing immediately",
+                    FieldMode.SCANNING,
                     machine.state,
                 )
             }

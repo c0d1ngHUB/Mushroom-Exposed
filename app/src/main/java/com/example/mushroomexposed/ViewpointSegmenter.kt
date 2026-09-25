@@ -56,10 +56,27 @@ class ViewpointSegmenter(
         }
         input.rewind()
 
-        val output = arrayOf(Array(outputChannels) { FloatArray(inputWidth * inputHeight) })
-        interpreter.run(input, output)
+        // Die Ausgabeform des TFLite-Graphen ist NHWC `[1, H, W, 6]`. Ein
+        // `run` in ein Java-Objekt der Form `[1, 6, H*W]` wirft zur Laufzeit
+        // „Cannot copy from a TensorFlowLite tensor [1, 300, 300, 6] to a Java
+        // object with shape [1, 6, 90000]" — am Geraet gefunden am 25.09.2026,
+        // auf der JVM unsichtbar, weil dort kein echtes Modell laeuft. Deshalb
+        // wird in die Ausgabeform des Modells gelaufen und danach umgeordnet.
+        val buffer = Array(1) { Array(inputHeight) { Array(inputWidth) { FloatArray(outputChannels) } } }
+        interpreter.run(input, buffer)
 
-        return Array(outputChannels) { channel -> output[0][channel] }
+        val flat = Array(outputChannels) { FloatArray(inputWidth * inputHeight) }
+        for (y in 0 until inputHeight) {
+            val rowStart = y * inputWidth
+            for (x in 0 until inputWidth) {
+                val pixel = buffer[0][y][x]
+                val index = rowStart + x
+                for (channel in 0 until outputChannels) {
+                    flat[channel][index] = pixel[channel]
+                }
+            }
+        }
+        return flat
     }
 
     /**
