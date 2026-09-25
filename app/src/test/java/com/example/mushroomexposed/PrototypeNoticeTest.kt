@@ -37,11 +37,31 @@ class PrototypeNoticeTest {
     }
 
     @Test
-    fun `the viewpoint asset is intentionally absent from the shipped apk`() {
-        assertFalse(
-            "the prototype segmenter must not ship until its gate passes",
-            File(assets, "viewpoint.tflite").exists(),
-        )
+    fun `the viewpoint asset ships only with its calibrated contract`() {
+        // Umgekehrt zur frueheren Zusicherung: die Datei ist jetzt ausgeliefert
+        // (Gate bestanden am 25.09.2026), und sie darf nie ohne ihren Vertrag
+        // im APK liegen. Ein Segmentierer ohne dominanz- und Grenzwerten waere
+        // ein Modell, dessen Regel die App nicht kennt — sie belegte dann keine
+        // Ansicht und der Flow scheiterte ohne erkennbaren Grund.
+        val model = File(assets, "viewpoint.tflite")
+        val contract = File(assets, "viewpoint.json")
+        if (model.exists()) {
+            assertTrue(
+                "a shipped segmenter must carry its calibrated contract",
+                contract.isFile,
+            )
+            val text = contract.readText()
+            assertTrue("the contract must carry the coverage floors", "min_coverage_by_view" in text)
+            assertTrue(
+                "the contract must carry the dominance rule",
+                "dominance_factor_by_view" in text,
+            )
+            assertTrue("the contract must name the model hash", "tflite_sha256" in text)
+        } else {
+            // Fehlt das Asset, muss die App geschlossen scheitern — dann darf
+            // auch kein Vertrag auf eine Messung zeigen, die es nicht gibt.
+            assertFalse("no contract without a model", contract.exists())
+        }
     }
 
     @Test

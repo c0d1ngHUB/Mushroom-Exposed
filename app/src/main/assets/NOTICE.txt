@@ -13,15 +13,18 @@ Erzeugt vom Repository Mushroom-Exposed-training
     Namensnennung sowie Weitergabe unter gleichen Bedingungen.
   - GBIF-Vorkommen (siehe Trainings-Repo, gb_dataset/), offen lizenziert.
 
-Mehransichten-Prototyp (viewpoint.tflite)
------------------------------------------
-Es gibt noch KEIN viewpoint.tflite in den Assets. Der Mehransichten-Prototyp
-der App ist deshalb ein **nichtkommerzieller Prototyp**: er basiert auf
-FungiTastic-M und darf so lange nicht kommerziell vertrieben werden, wie
-dieses Asset enthalten ist.
+Mehransichten-Prototyp (viewpoint.tflite, viewpoint.json)
+---------------------------------------------------------
+Das Segmentierer-Asset ist seit dem 25.09.2026 ausgeliefert:
+Lauf `skip-300-seed42`, Gate bestanden (`accept: true`), Kandidat mit
+Hutdominanzregel k = 1,0. `viewpoint.json` traegt die kalibrierten Grenzen
+(min_coverage_by_view, dominance_factor_by_view) und den Modellhash.
 
-Sobald ein Segmentierer-Asset ausgeliefert wird, gilt fuer dieses Repository
-und jede APK daraus:
+Der Mehransichten-Prototyp der App ist damit ein nichtkommerzieller Prototyp:
+er basiert auf FungiTastic-M und darf nicht kommerziell vertrieben werden,
+solange dieses Asset enthalten ist.
+
+Fuer dieses Repository und jede APK daraus gilt:
 
   - Nutzung ausschliesslich nicht kommerziell.
   - Nennung von FungiTastic-M und der Lizenz CC BY-NC-SA 4.0.

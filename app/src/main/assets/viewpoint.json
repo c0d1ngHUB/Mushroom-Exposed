@@ -1,0 +1,19 @@
+{
+  "dominance_factor_by_view": {
+    "cap": 1.0,
+    "stipe_ring": 0.0,
+    "underside": 0.0
+  },
+  "input_size": 300,
+  "min_coverage_by_view": {
+    "cap": 0.001,
+    "stipe_ring": 0.001,
+    "underside": 0.01
+  },
+  "min_sharpness": 0.05,
+  "output_channels": 6,
+  "run_id": "skip-300-seed42",
+  "staged_by": "src/stage_viewpoint.py",
+  "tflite_sha256": "f1b42948fc5b0ac5983dbc2db86a4964655d1889436e4044ab60ffe13f2b275f",
+  "thresholds_basis": "frame-level view evidence, chosen on val"
+}
