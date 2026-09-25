@@ -22,6 +22,9 @@ class ViewpointConfigTest {
             "min_coverage_by_view" to JSONObject(
                 mapOf("cap" to 0.005, "underside" to 0.01, "stipe_ring" to 0.005),
             ),
+            "dominance_factor_by_view" to JSONObject(
+                mapOf("cap" to 1.0, "underside" to 0.0, "stipe_ring" to 0.0),
+            ),
             "min_sharpness" to 0.05,
         ),
     ).toString()
@@ -57,6 +60,9 @@ class ViewpointConfigTest {
         val incomplete = JSONObject(
             mapOf(
                 "min_coverage_by_view" to JSONObject(mapOf("cap" to 0.005, "underside" to 0.01)),
+                "dominance_factor_by_view" to JSONObject(
+                    mapOf("cap" to 1.0, "underside" to 0.0, "stipe_ring" to 0.0),
+                ),
                 "min_sharpness" to 0.05,
             ),
         ).toString()
@@ -70,6 +76,9 @@ class ViewpointConfigTest {
             mapOf(
                 "min_coverage_by_view" to JSONObject(
                     mapOf("cap" to 0.005, "underside" to 0.01, "stipe_ring" to 0.005),
+                ),
+                "dominance_factor_by_view" to JSONObject(
+                    mapOf("cap" to 1.0, "underside" to 0.0, "stipe_ring" to 0.0),
                 ),
             ),
         ).toString()
@@ -95,11 +104,68 @@ class ViewpointConfigTest {
     }
 
     @Test
+    fun `the dominance factor of every view is read`() {
+        val acceptance = ViewpointConfig.parseOrNull(valid)
+
+        assertNotNull(acceptance)
+        assertEquals(1.0f, acceptance!!.dominanceFactorFor(ViewStep.CAP), 1e-6f)
+        assertEquals(0.0f, acceptance.dominanceFactorFor(ViewStep.UNDERSIDE), 1e-6f)
+        assertEquals(0.0f, acceptance.dominanceFactorFor(ViewStep.STIPE_RING), 1e-6f)
+    }
+
+    @Test
+    fun `a contract without the dominance block is refused`() {
+        // Ohne die Regel muesste die App raten, wann eine Ansicht belegt ist.
+        val noDominance = JSONObject(
+            mapOf(
+                "min_coverage_by_view" to JSONObject(
+                    mapOf("cap" to 0.005, "underside" to 0.01, "stipe_ring" to 0.005),
+                ),
+                "min_sharpness" to 0.05,
+            ),
+        ).toString()
+
+        assertNull(ViewpointConfig.parseOrNull(noDominance))
+    }
+
+    @Test
+    fun `a missing view in the dominance block is refused`() {
+        val incomplete = JSONObject(
+            mapOf(
+                "min_coverage_by_view" to JSONObject(
+                    mapOf("cap" to 0.005, "underside" to 0.01, "stipe_ring" to 0.005),
+                ),
+                "dominance_factor_by_view" to JSONObject(mapOf("cap" to 1.0)),
+                "min_sharpness" to 0.05,
+            ),
+        ).toString()
+
+        assertNull(ViewpointConfig.parseOrNull(incomplete))
+    }
+
+    @Test
+    fun `a negative dominance factor is refused`() {
+        val negative = JSONObject(valid)
+            .getJSONObject("dominance_factor_by_view")
+            .put("cap", -1.0)
+
+        assertNull(
+            ViewpointConfig.parseOrNull(
+                JSONObject(valid).put("dominance_factor_by_view", negative).toString(),
+            ),
+        )
+    }
+
+    @Test
     fun `the acceptance refuses an incomplete map on its own`() {
         // Der Konstruktor ist die zweite Sicherung: auch wer die Map direkt
         // baut, kann keine Ansicht ohne Grenze einsetzen.
         val thrown = runCatching {
-            ViewAcceptance(minCoverageByStep = mapOf(ViewStep.CAP to 0.05f), minSharpness = 0.05f)
+            ViewAcceptance(
+                minCoverageByStep = mapOf(ViewStep.CAP to 0.05f),
+                minSharpness = 0.05f,
+                dominanceFactorByStep = mapOf(ViewStep.CAP to 1f),
+            )
         }.isFailure
 
         assertTrue(thrown)

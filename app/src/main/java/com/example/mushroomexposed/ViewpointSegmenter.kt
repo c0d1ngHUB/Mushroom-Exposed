@@ -66,6 +66,12 @@ class ViewpointSegmenter(
      * Evidenz für jede Ansicht, die dieser Frame belegt. Ein Lamellen- oder
      * Poren-Treffer belegt genau die Unterseite, ein Stiel- oder Ring-Treffer
      * genau Stiel / Ring, ein Hut-Treffer genau den Hut.
+     *
+     * `competingCoverage` ist der stärkste **fremde** Teilkanal desselben
+     * Frames. Der eigene Kanal zählt nicht mit — bei der Unterseite sind
+     * Lamellen und Poren beide „eigen", sodass ihr Wettbewerber der Hut oder
+     * Stiel/Ring ist. Ein Kanal, der sich selbst als Wettbewerber hätte, würde
+     * durch die Dominanzregel faktisch abgeschaltet.
      */
     fun evidenceFor(bitmap: Bitmap, frameId: Long): List<ViewEvidence> {
         val masks = masksFor(bitmap) ?: return emptyList()
@@ -77,15 +83,16 @@ class ViewpointSegmenter(
         val stipe = coverage(masks[ViewpointContract.CHANNEL_STIPE])
         val ring = coverage(masks[ViewpointContract.CHANNEL_RING])
 
+        val underside = maxOf(gills, pores)
+        val stipeRing = maxOf(stipe, ring)
+
         return buildList {
-            if (cap > 0f) add(ViewEvidence(ViewStep.CAP, cap, sharpness, frameId))
+            if (cap > 0f) add(ViewEvidence(ViewStep.CAP, cap, sharpness, frameId, maxOf(underside, stipeRing)))
             // Unterseite: Lamellen ODER Poren, nicht beides noetig.
-            val underside = maxOf(gills, pores)
-            if (underside > 0f) add(ViewEvidence(ViewStep.UNDERSIDE, underside, sharpness, frameId))
+            if (underside > 0f) add(ViewEvidence(ViewStep.UNDERSIDE, underside, sharpness, frameId, maxOf(cap, stipeRing)))
             // Stiel / Ring; die unterste Stielzone ist bewusst keine eigene
             // Ansicht, weil die Datenquelle sie nicht verlaesslich abdeckt.
-            val stipeRing = maxOf(stipe, ring)
-            if (stipeRing > 0f) add(ViewEvidence(ViewStep.STIPE_RING, stipeRing, sharpness, frameId))
+            if (stipeRing > 0f) add(ViewEvidence(ViewStep.STIPE_RING, stipeRing, sharpness, frameId, maxOf(cap, underside)))
         }
     }
 

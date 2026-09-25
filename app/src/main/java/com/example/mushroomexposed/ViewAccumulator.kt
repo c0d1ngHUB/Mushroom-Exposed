@@ -13,10 +13,26 @@ data class ViewEvidence(
     val coverage: Float,
     val sharpness: Float,
     val frameId: Long,
+    /**
+     * Stärkster **fremder** Teilkanal derselben Messung.
+     *
+     * Warum die App das braucht: der Hutkanal markiert auf einer Unteransicht
+     * den ganzen Fruchtkörper mit — gemessen am 25.09.2026 trug jeder der 378
+     * Hut-Fehlalarme im Trainingssatz ein Lamellen- oder Porenlabel, und der
+     * Hut lag dort mit 0,059 Abdeckung im Median *unter* der belegten
+     * Unterseite. Eine reine Flächenschwelle kann das nicht trennen (Treffer
+     * 0,097 gegen Fehlalarm 0,059). Erst der Vergleich mit dem stärksten
+     * anderen Kanal macht „Hut" von „Pilz" unterscheidbar.
+     *
+     * Der eigene Kanal zählt nicht mit: sonst dominierte sich eine Ansicht
+     * selbst und ein Faktor über 1 wäre unerfüllbar.
+     */
+    val competingCoverage: Float = 0f,
 ) {
     init {
         require(coverage in 0f..1f) { "coverage must be in [0, 1]" }
         require(sharpness in 0f..1f) { "sharpness must be in [0, 1]" }
+        require(competingCoverage in 0f..1f) { "competingCoverage must be in [0, 1]" }
     }
 
     val score: Float
@@ -43,18 +59,32 @@ data class ViewEvidence(
  * ist bereits gegen das Galinawald-Set kalibriert (`FrameQualityPolicy`). Eine
  * zweite, modellabhängige Schärfegrenze wäre eine zweite Wahrheit für
  * denselben Messwert.
+ *
+ * `dominanceFactorByStep` ist die zweite Hälfte der Ansichtsgrenze: eine
+ * Ansicht gilt nur als belegt, wenn ihre Abdeckung auch den stärksten fremden
+ * Teilkanal erreicht (`coverage >= k * competingCoverage`). Der Faktor kommt
+ * kalibriert aus `viewpoint.json`, nicht als Konstante. Fehlt er für eine
+ * Ansicht, ist der Vertrag unvollständig und die App belegt **keine** Ansicht.
  */
 data class ViewAcceptance(
     val minCoverageByStep: Map<ViewStep, Float>,
     val minSharpness: Float,
+    val dominanceFactorByStep: Map<ViewStep, Float>,
 ) {
     init {
         require(minCoverageByStep.keys.containsAll(ViewStep.entries.toSet())) {
             "minCoverageByStep must cover every view step, missing: " +
                 ViewStep.entries.filterNot { it in minCoverageByStep }
         }
+        require(dominanceFactorByStep.keys.containsAll(ViewStep.entries.toSet())) {
+            "dominanceFactorByStep must cover every view step, missing: " +
+                ViewStep.entries.filterNot { it in dominanceFactorByStep }
+        }
         require(minCoverageByStep.values.all { it in 0f..1f }) {
             "every minCoverage must be in [0, 1]"
+        }
+        require(dominanceFactorByStep.values.all { it >= 0f }) {
+            "every dominance factor must be >= 0"
         }
         require(minSharpness in 0f..1f) { "minSharpness must be in [0, 1]" }
     }
@@ -62,6 +92,10 @@ data class ViewAcceptance(
     /** Evidenzgrenze der genannten Ansicht. */
     fun minCoverageFor(step: ViewStep): Float =
         requireNotNull(minCoverageByStep[step]) { "no calibrated coverage for $step" }
+
+    /** Dominanzfaktor der genannten Ansicht. */
+    fun dominanceFactorFor(step: ViewStep): Float =
+        requireNotNull(dominanceFactorByStep[step]) { "no calibrated dominance for $step" }
 }
 
 /** UI-fähiger Snapshot ohne Bitmap oder Bilddaten. */
@@ -83,7 +117,9 @@ class ViewAccumulator(private val acceptance: ViewAcceptance) {
 
     fun accept(evidence: ViewEvidence): ViewProgress {
         val floor = acceptance.minCoverageFor(evidence.step)
-        if (evidence.coverage < floor || evidence.sharpness < acceptance.minSharpness) {
+        val dominance = acceptance.dominanceFactorFor(evidence.step)
+        val required = maxOf(floor, dominance * evidence.competingCoverage)
+        if (evidence.coverage < required || evidence.sharpness < acceptance.minSharpness) {
             return progress()
         }
         val current = bestByStep[evidence.step]

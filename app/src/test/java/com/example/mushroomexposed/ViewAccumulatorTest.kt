@@ -14,6 +14,11 @@ class ViewAccumulatorTest {
             ViewStep.STIPE_RING to 0.60f,
         ),
         minSharpness = 0.70f,
+        dominanceFactorByStep = mapOf(
+            ViewStep.CAP to 0f,
+            ViewStep.UNDERSIDE to 0f,
+            ViewStep.STIPE_RING to 0f,
+        ),
     )
 
     private fun evidence(
@@ -21,7 +26,8 @@ class ViewAccumulatorTest {
         coverage: Float = 0.80f,
         sharpness: Float = 0.90f,
         frameId: Long = 1L,
-    ) = ViewEvidence(step, coverage, sharpness, frameId)
+        competingCoverage: Float = 0f,
+    ) = ViewEvidence(step, coverage, sharpness, frameId, competingCoverage)
 
     @Test
     fun `underside evidence completes only the underside step`() {
@@ -92,6 +98,11 @@ class ViewAccumulatorTest {
                 ViewStep.STIPE_RING to 0.005f,
             ),
             minSharpness = 0.70f,
+            dominanceFactorByStep = mapOf(
+                ViewStep.CAP to 0f,
+                ViewStep.UNDERSIDE to 0f,
+                ViewStep.STIPE_RING to 0f,
+            ),
         )
         val accumulator = ViewAccumulator(perView)
 
@@ -115,5 +126,100 @@ class ViewAccumulatorTest {
         assertEquals(ViewStep.CAP, progress.next)
         assertNull(accumulator.best(ViewStep.CAP))
         assertNull(accumulator.best(ViewStep.UNDERSIDE))
+    }
+
+    @Test
+    fun `a cap that does not dominate the underside is not evidence`() {
+        // Der gemessene Fehlalarm-Fall: Hut 0,06, Lamellen 0,13. Der Hutkanal
+        // findet den Pilz, nicht den Hut.
+        val rule = ViewAcceptance(
+            minCoverageByStep = mapOf(
+                ViewStep.CAP to 0.001f,
+                ViewStep.UNDERSIDE to 0.001f,
+                ViewStep.STIPE_RING to 0.001f,
+            ),
+            minSharpness = 0.70f,
+            dominanceFactorByStep = mapOf(
+                ViewStep.CAP to 1.0f,
+                ViewStep.UNDERSIDE to 0f,
+                ViewStep.STIPE_RING to 0f,
+            ),
+        )
+        val accumulator = ViewAccumulator(rule)
+
+        val progress = accumulator.accept(
+            evidence(ViewStep.CAP, coverage = 0.06f, competingCoverage = 0.13f),
+        )
+
+        assertFalse(progress.captured.contains(ViewStep.CAP))
+    }
+
+    @Test
+    fun `a cap that reaches the underside is evidence`() {
+        val rule = ViewAcceptance(
+            minCoverageByStep = mapOf(
+                ViewStep.CAP to 0.001f,
+                ViewStep.UNDERSIDE to 0.001f,
+                ViewStep.STIPE_RING to 0.001f,
+            ),
+            minSharpness = 0.70f,
+            dominanceFactorByStep = mapOf(
+                ViewStep.CAP to 1.0f,
+                ViewStep.UNDERSIDE to 0f,
+                ViewStep.STIPE_RING to 0f,
+            ),
+        )
+        val accumulator = ViewAccumulator(rule)
+
+        val progress = accumulator.accept(
+            evidence(ViewStep.CAP, coverage = 0.20f, competingCoverage = 0.13f),
+        )
+
+        assertTrue(progress.captured.contains(ViewStep.CAP))
+    }
+
+    @Test
+    fun `the dominance rule does not switch off the other views`() {
+        // Unterseite und Stiel/Ring fahren Faktor 0: ihr eigener Nachweis darf
+        // nicht an einem starken Hut scheitern.
+        val rule = ViewAcceptance(
+            minCoverageByStep = mapOf(
+                ViewStep.CAP to 0.001f,
+                ViewStep.UNDERSIDE to 0.001f,
+                ViewStep.STIPE_RING to 0.001f,
+            ),
+            minSharpness = 0.70f,
+            dominanceFactorByStep = mapOf(
+                ViewStep.CAP to 1.0f,
+                ViewStep.UNDERSIDE to 0f,
+                ViewStep.STIPE_RING to 0f,
+            ),
+        )
+        val accumulator = ViewAccumulator(rule)
+
+        val progress = accumulator.accept(
+            evidence(ViewStep.UNDERSIDE, coverage = 0.05f, competingCoverage = 0.40f),
+        )
+
+        assertTrue(progress.captured.contains(ViewStep.UNDERSIDE))
+    }
+
+    @Test
+    fun `an acceptance without a dominance factor for every view is refused`() {
+        // Der Konstruktor ist die Sicherung: ein Vertrag ohne die Regel fuer
+        // eine Ansicht laesst die App nicht raten.
+        val thrown = runCatching {
+            ViewAcceptance(
+                minCoverageByStep = mapOf(
+                    ViewStep.CAP to 0.05f,
+                    ViewStep.UNDERSIDE to 0.05f,
+                    ViewStep.STIPE_RING to 0.05f,
+                ),
+                minSharpness = 0.05f,
+                dominanceFactorByStep = mapOf(ViewStep.CAP to 1.0f),
+            )
+        }.isFailure
+
+        assertTrue(thrown)
     }
 }

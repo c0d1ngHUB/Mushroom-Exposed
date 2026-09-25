@@ -41,10 +41,23 @@ object ViewpointConfig {
             require(value in 0f..1f) { "$key coverage $value outside [0, 1]" }
             step to value
         }
+        // Die Dominanzregel gehört zum selben Vertrag: ohne sie müsste die App
+        // raten, wann eine Ansicht belegt ist. Fehlt sie, gibt es keine
+        // Akzeptanz — dieselbe Fail-closed-Regel wie bei den Schwellen.
+        val dominance = root.getJSONObject("dominance_factor_by_view")
+        val dominanceByStep: Map<ViewStep, Float> = STEP_KEYS.entries.associate { (key, step) ->
+            val value = dominance.getDouble(key).toFloat()
+            require(value >= 0f) { "$key dominance $value is negative" }
+            step to value
+        }
         // Die Vollständigkeit steckt im Konstruktor von `ViewAcceptance`: ein
         // fehlendes Feld fällt dort auf, nicht erst beim Sammeln.
         val sharpness = root.getDouble("min_sharpness").toFloat()
-        ViewAcceptance(minCoverageByStep = byStep, minSharpness = sharpness)
+        ViewAcceptance(
+            minCoverageByStep = byStep,
+            minSharpness = sharpness,
+            dominanceFactorByStep = dominanceByStep,
+        )
     } catch (e: Exception) {
         null
     }
