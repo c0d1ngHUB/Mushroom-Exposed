@@ -7,8 +7,9 @@ An Android app for automatic mushroom identification via video using CameraX and
 - Field mode: live preview with a centre target frame and quality hints ("mehr Licht",
   "näher heran / ruhig halten"). **Hold-to-scan**: holding the ring collects three
   verified views one after another — Hut, Unterseite, Stiel / Ring — and each is
-  ticked off visibly as it is captured. Only when all three are covered does the app
-  analyse, freeze the frame and show one result. Releasing early cancels without
+  ticked off visibly as it is captured. With the segmenter and its configuration
+  loaded, the app waits until all three are covered before it analyses, freezes
+  the frame and shows one result. Releasing early cancels without
   leaving a result, a history entry or a file.
 - Multi-view consensus: the three captured views are each run through the species
   model and their probability vectors are combined as a geometric mean in log space,
@@ -42,18 +43,26 @@ An Android app for automatic mushroom identification via video using CameraX and
 
 ## Requirements
 
-- Android SDK 26+
-- Android Studio (for building)
-- The TFLite model and label file in `app/src/main/assets/` (`model.tflite`,
-  `labels.txt`), both produced by the
-  [Mushroom-Exposed-training](../Mushroom-Exposed-training) repo
-  (`src/verify_and_stage.py` stages them, including `lookalikes.txt`)
+- Android 8.0 / API 26 or newer on the device (`minSdk = 26`).
+- JDK 17 or newer and Android SDK Platform 35 to build (`compileSdk = 35`).
+  Android Studio can install the SDK; a command-line build uses `ANDROID_HOME`
+  or a local, ignored `local.properties` containing `sdk.dir=/path/to/android-sdk`.
+- Use the checked-in Gradle wrapper (Gradle 8.11.1, Android Gradle Plugin 8.7.3).
+- Model assets are already tracked in `app/src/main/assets/`: `model.tflite`,
+  `labels.txt`, `lookalikes.txt`, `viewpoint.tflite` and `viewpoint.json`. The
+  [Mushroom-Exposed-training](https://github.com/c0d1ngHUB/Mushroom-Exposed-training)
+  repository stages the species assets with `src/verify_and_stage.py`.
+  `viewpoint.json` records `src/stage_viewpoint.py` as historical staging
+  provenance; that script is not in the current training checkout. The
+  segmenter and contract are already tracked here. Keep them together when
+  updating assets.
 
 ## Build
 
 ```bash
 ./gradlew assembleDebug          # -> app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest      # unit tests: verdict policy, history, lookalikes, quality
+./gradlew testDebugUnitTest      # JVM tests, including the shipped asset contract
+./gradlew lintDebug              # Android lint
 
 # instrumented layout regression (needs a booted device/emulator).
 # Set ANDROID_SERIAL when a physical device is also attached: Gradle otherwise
@@ -89,16 +98,24 @@ use, so this prototype and any APK built from it are a **nichtkommerzieller
 Prototyp** — noncommercial only, attribution required, derivatives under the same
 terms. Full text: `app/src/main/assets/NOTICE.txt`.
 
-**That asset is not shipped.** `app/src/main/assets/` holds no `viewpoint.tflite`
-yet, because the segmenter gate has not passed. The app is built to fail closed in
-exactly that state: `MainActivity.loadViewpointModel()` leaves the segmenter
-unavailable, starting a scan refuses with *"Ansichtserkennung nicht verfügbar"*,
-no view row can ever be marked captured and no consensus can form. A missing asset
-produces no green state — it produces no result.
+**The segmenter is shipped with its calibrated contract.** The tracked
+`viewpoint.json` names run `skip-300-seed42`, a 300 px input, six output channels
+and the SHA-256 of `viewpoint.tflite`. `ViewpointConfig` reads the coverage,
+sharpness and dominance thresholds from that file; do not replace them with UI
+constants. `ShippedViewpointContractTest` checks the actual staged files and
+model hash.
 
-The acceptance thresholds for a captured view (`ViewAcceptance`) belong to the
-evaluated model configuration, not to the UI code, and cannot be calibrated before
-that model exists. They are therefore deliberately not invented here.
+If the segmenter cannot load, has an incompatible channel count, or its
+configuration cannot be parsed, the three-view capture path remains unavailable:
+no view row can be marked captured. The current shutter handler then falls back
+to **single-frame species classification**, rather than refusing every capture.
+It does not fabricate three-view evidence. If the species model itself is
+unavailable, capture returns to the live state without a result.
+
+The [device-test note](docs/superpowers/notes/geraetetest-tensorform-2026-09-25.md)
+records the NHWC tensor-layout fix and historical test results on 2026-09-25.
+Those results are not a fresh verification of another checkout or device;
+manual field testing was still listed as open in that note.
 
 ## Release state
 
@@ -128,21 +145,24 @@ the wider basis yet** — a re-run on both bases is the open item.
 
 So: the numbers above are valid for those 43 species and justify neither a
 quality claim nor a rejection for the rest of the label space. Measured cause and
-the fix: `docs/superpowers/notes/gate-abdeckung-2026-09-23.md` in the training
-repo.
+the fix: [gate coverage note](https://github.com/c0d1ngHUB/Mushroom-Exposed-training/blob/main/docs/superpowers/notes/gate-abdeckung-2026-09-23.md)
+in the training repo.
 
 **Known safety gap in the shipped model (measured 2026-09-23).** Three classes
 carried as "essbar" recognise themselves almost not at all, and clear images of
 a *different* edible species as edible while crossing the 0.60 threshold: on the
 frozen holdout basis (43 images) **1 of them stays green with no warning at
 all**. No lookalike entry exists for any of the three. Which three, and the full
-numbers: `docs/superpowers/notes/thin-edible-freigaben-2026-09-23.md`. No claim
+numbers: [thin-edible release note](https://github.com/c0d1ngHUB/Mushroom-Exposed-training/blob/main/docs/superpowers/notes/thin-edible-freigaben-2026-09-23.md). No claim
 is made here about whether those species are edible — only that the model does
 not identify them and nothing catches it. The release decision is open.
 
 ## License
 
-MIT
+The repository code is covered by [MIT](LICENSE). The bundled model/data assets
+have separate provenance and noncommercial restrictions described in
+[NOTICE.txt](app/src/main/assets/NOTICE.txt); the code license does not remove
+those restrictions.
 
 ## Disclaimer
 
