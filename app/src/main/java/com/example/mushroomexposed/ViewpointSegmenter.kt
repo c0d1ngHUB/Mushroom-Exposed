@@ -120,9 +120,11 @@ class ViewpointSegmenter(
         val stipe = coverage(ViewpointChannel.STIPE)
         val ring = coverage(ViewpointChannel.RING)
 
-        val foreignForCap = maxOf(undersideMax(gills, pores), stipeRingMax(stipe, ring))
-        val foreignForUnderside = maxOf(cap, stipeRingMax(stipe, ring))
-        val foreignForStipeRing = maxOf(cap, undersideMax(gills, pores))
+        // Fremde Kanäle gehen mit ihren tatsächlichen Flächen in den Wettbewerb
+        // ein — auch wenn sie für ihre eigene Ansicht nicht qualifizieren.
+        val foreignForCap = maxOf(maxOf(gills, pores), maxOf(stipe, ring))
+        val foreignForUnderside = maxOf(cap, maxOf(stipe, ring))
+        val foreignForStipeRing = maxOf(cap, maxOf(gills, pores))
 
         return buildList {
             qualifiedEvidence(ViewStep.CAP, listOf(ViewpointChannel.CAP), coverage, foreignForCap, sharpness, frameId)?.let(::add)
@@ -130,12 +132,6 @@ class ViewpointSegmenter(
             qualifiedEvidence(ViewStep.STIPE_RING, listOf(ViewpointChannel.STIPE, ViewpointChannel.RING), coverage, foreignForStipeRing, sharpness, frameId)?.let(::add)
         }
     }
-
-    private fun undersideMax(gills: Float, pores: Float): Float =
-        if (acceptance?.channelPoints == null) maxOf(gills, pores) else maxOf(gills, pores)
-
-    private fun stipeRingMax(stipe: Float, ring: Float): Float =
-        if (acceptance?.channelPoints == null) maxOf(stipe, ring) else maxOf(stipe, ring)
 
     /**
      * Erzeugt Evidenz für eine Ansicht, wenn mindestens ein eigener Kanal seine
