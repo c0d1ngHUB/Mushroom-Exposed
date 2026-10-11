@@ -14,13 +14,13 @@ lokale temporäre Datei.
 
 - Tatsächlich geladener Modell-SHA-256, Input-/Output-Tensorformen, verwendeter
   v2-Testvertrag, Kanalreihenfolge, Android-API und Messzeitpunkt.
-- Fünf echte lokale FungiTastic-Mini-Bilder (drei Train, zwei Val): Rohbild-SHA-256,
+- Fünf echte lokale FungiTastic-Mini-Bilder (ein Train, vier Val): Rohbild-SHA-256,
   Observation-ID, Originalabmessungen, Android/Skia-Schärfe direkt aus dem
   produktiven Segmentierer und sechs Kanalflächen bei beiden Aktivierungen
   0,3 und 0,5.
 - Python-Schärfe aus denselben Rohbildbytes ohne 300×300-Zwischenschritt,
   absolute Python-/Android-Abweichung und explizite Übereinstimmung der
-  Entscheidung an der unveränderten Schärfeschwelle 0,05. Die zwei Val-Frames
+  Entscheidung an der unveränderten Schärfeschwelle 0,05. Zwei der Val-Frames
   liegen mit Python 0,051292 und 0,047730 direkt ober- und unterhalb der Grenze.
 - Ansichtsentscheidungen aus `ViewpointSegmenter` und `ViewAccumulator`;
   Vergleich mit den bereits gepinnten Python-Golden-Entscheidungen:
@@ -67,7 +67,7 @@ bleiben unverändert; keine Schwellenübernahme und kein Staging.
 ## Verifizierter Lauf am 2026-10-11
 
 - `testDebugUnitTest`: 167 Tests, 0 Fehler, 0 übersprungen.
-- Python: neuer Rohbildpfad-Regressionscheck 1/1 sowie bestehende
+- Python: Rohbildpfad- und Split-Provenienz-Regressionschecks 2/2 sowie bestehende
   Schärfe-/Messsuite 16/16 bestanden.
 - `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`: BUILD SUCCESSFUL.
 - `connectedDebugAndroidTest` auf API 35: 19 Tests, 0 Fehler, 0 übersprungen.
@@ -82,7 +82,10 @@ bleiben unverändert; keine Schwellenübernahme und kein Staging.
 - Neue Berichtsfunktion ursprünglich RED (Messbericht fehlt), dann GREEN.
   Stale-Berichtsprüfung zusätzlich durch Entfernen der Invalidierung RED,
   Originalcode wiederhergestellt und vollständige Suite GREEN.
-- Separater read-only Review der Fortsetzungsänderung: keine Befunde.
+- Separater read-only Review fand zwei fälschlich als Train bezeichnete
+  Seed-42-Val-Frames. Die Angaben werden nun im Python-Generator aus dem
+  persistierten Split-Manifest abgeleitet und im Android-Bericht als ein
+  Train- und vier Val-Frames geprüft.
 
 Die Python-/Android-Schärfen sind 0,526556/0,538407, 0,024861/0,024918,
 0,611200/0,613212, 0,051292/0,050651 und 0,047730/0,047570. Die absoluten

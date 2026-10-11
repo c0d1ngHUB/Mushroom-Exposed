@@ -135,7 +135,7 @@ class ViewpointRuntimeTest {
      * Niedrige Schärfe: kein Frame darf je eine Ansicht belegen.
      *
      * Frame: FungiTastic-Mini train/300p/3-3126950317.JPG
-     * observationID: 3126950317 (Train-Split seed-42)
+     * observationID: 3126950317 (Val-Split seed-42)
      * Python-Golden: sharpness=0.024861, cap=false, underside=false, stipe_ring=false
      */
     @Test
@@ -180,7 +180,7 @@ class ViewpointRuntimeTest {
      * keinen eigenen Kanal.
      *
      * Frame: FungiTastic-Mini train/300p/0-3313851318.JPG
-     * observationID: 3313851318 (Train-Split seed-42)
+     * observationID: 3313851318 (Val-Split seed-42)
      * Python-Golden: sharpness=0.611200, cap=false, underside=true, stipe_ring=false
      *   cap coverage 0.165033 bei cap-dominance 1.0 vs gills 0.376789 -> rejected
      */
@@ -255,9 +255,10 @@ class ViewpointRuntimeTest {
             0.05129240887285327,
             0.04772980201392636,
         )
+        val expectedSourceSplits = listOf("train", "val", "val", "val", "val")
         for (i in 0 until frames.length()) {
             val frame = frames.getJSONObject(i)
-            assertEquals(if (i < 3) "train" else "val", frame.getString("source_split"))
+            assertEquals(expectedSourceSplits[i], frame.getString("source_split"))
             assertEquals(64, frame.getString("image_sha256").length)
             val androidSharpness = frame.getDouble("sharpness")
             assertTrue(androidSharpness.isFinite())
@@ -381,7 +382,7 @@ class ViewpointRuntimeTest {
                 put("schema_version", 2)
                 put("report_kind", "android_runtime_sample")
                 put("release_eligible", false)
-                put("scope", "three FungiTastic-Mini train/300p frames plus two val sharpness-boundary frames; no full val/test NPZ or field-test binding")
+                put("scope", "one Seed-42 train frame plus four val frames, including two sharpness-boundary cases; no full val/test NPZ or field-test binding")
                 put("license", "CC BY-NC-SA 4.0")
                 put("model_sha256", loaded.sha)
                 put("run_id", "skip-300-seed42")
@@ -424,11 +425,11 @@ class ViewpointRuntimeTest {
             setOf(ViewStep.CAP, ViewStep.UNDERSIDE, ViewStep.STIPE_RING)),
         RuntimeFrame("3-3126950317_frame.jpg", "3126950317",
             "767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e",
-            "train",
+            "val",
             0.02486122863859786, emptySet()),
         RuntimeFrame("0-3313851318_frame.jpg", "3313851318",
             "5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df",
-            "train",
+            "val",
             0.6112003551975399, setOf(ViewStep.UNDERSIDE)),
         RuntimeFrame("1-3329734337_frame.jpg", "3329734337",
             "cab39916854922c73d10daf15cfe1f5aaec0c85289bfae85d35ed63c9ee8d48f",

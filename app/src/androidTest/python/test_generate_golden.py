@@ -27,3 +27,22 @@ def test_source_sharpness_skips_model_size_intermediate_resize():
 
     assert measured == pytest.approx(0.1435049049800002, abs=1e-12)
 
+
+def test_runtime_frames_use_persisted_seed42_split_provenance():
+    expected = {
+        "2237852161": "train",
+        "3126950317": "val",
+        "3313851318": "val",
+        "3329734337": "val",
+        "3008838331": "val",
+    }
+
+    measured = {
+        entry["observation_id"]: generate_golden.source_split_for_observation(
+            entry["observation_id"]
+        )
+        for entry in generate_golden.FRAMES
+    }
+
+    assert measured == expected
+
