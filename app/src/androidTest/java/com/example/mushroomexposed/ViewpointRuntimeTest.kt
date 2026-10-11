@@ -9,6 +9,7 @@ import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.security.MessageDigest
+import kotlin.math.abs
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -19,10 +20,10 @@ import org.junit.Test
 import org.tensorflow.lite.Interpreter
 
 /**
- * Laufzeitparität: echte, beschriftete FungiTastic-Mini-Trainframes
- * (train/300p) werden vom ausgelieferten TFLite-Segmentierer mit einem
- * v2-Vertrag verarbeitet. Ergebnis wird gegen das Python-Golden desselben
- * Bildes geprüft.
+ * Laufzeitparität: echte, beschriftete FungiTastic-Mini-Train- und Val-Frames
+ * (physisch unter train/300p) werden vom ausgelieferten TFLite-Segmentierer
+ * mit einem v2-Vertrag verarbeitet. Ergebnis wird gegen das Python-Golden
+ * desselben Bildes geprüft.
  *
  * Was eine einzelne Frame-Parität beweist:
  * - Das ausgelieferte TFLite-Modell produziert auf einem konkreten
@@ -135,7 +136,7 @@ class ViewpointRuntimeTest {
      *
      * Frame: FungiTastic-Mini train/300p/3-3126950317.JPG
      * observationID: 3126950317 (Train-Split seed-42)
-     * Python-Golden: sharpness=0.023820, cap=false, underside=false, stipe_ring=false
+     * Python-Golden: sharpness=0.024861, cap=false, underside=false, stipe_ring=false
      */
     @Test
     fun lowSharpnessFrameRejectsAllViews() {
@@ -180,7 +181,7 @@ class ViewpointRuntimeTest {
      *
      * Frame: FungiTastic-Mini train/300p/0-3313851318.JPG
      * observationID: 3313851318 (Train-Split seed-42)
-     * Python-Golden: sharpness=0.487850, cap=false, underside=true, stipe_ring=false
+     * Python-Golden: sharpness=0.611200, cap=false, underside=true, stipe_ring=false
      *   cap coverage 0.165033 bei cap-dominance 1.0 vs gills 0.376789 -> rejected
      */
     @Test
@@ -230,21 +231,43 @@ class ViewpointRuntimeTest {
         exportRuntimeSample(report)
         assertTrue("runtime measurements must be exported after validation", report.isFile)
         val json = JSONObject(report.readText())
+        assertEquals(2, json.getInt("schema_version"))
         assertEquals("android_runtime_sample", json.getString("report_kind"))
-        assertFalse("a train-frame sample must never authorize release", json.getBoolean("release_eligible"))
+        assertFalse("a local frame sample must never authorize release", json.getBoolean("release_eligible"))
         assertFalse("sample must not masquerade as split-bound parity", json.has("input_hashes"))
         assertEquals("f1b42948fc5b0ac5983dbc2db86a4964655d1889436e4044ab60ffe13f2b275f", json.getString("model_sha256"))
+        assertEquals(0.012, json.getDouble("sharpness_abs_tolerance"), 0.0)
+        assertTrue(json.getBoolean("flags_match_python_golden"))
+        assertFalse(json.has("flags_match_train_golden"))
         val frames = json.getJSONArray("frames")
-        assertEquals(3, frames.length())
+        assertEquals(5, frames.length())
         assertEquals("ad7236af757f29fdce744767515874ce25460a4e9bad8a1025ee9d35f916a475", frames.getJSONObject(0).getString("image_sha256"))
         assertEquals("767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e", frames.getJSONObject(1).getString("image_sha256"))
         assertEquals("5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df", frames.getJSONObject(2).getString("image_sha256"))
+        assertEquals("cab39916854922c73d10daf15cfe1f5aaec0c85289bfae85d35ed63c9ee8d48f", frames.getJSONObject(3).getString("image_sha256"))
+        assertEquals("940ae952a925236436e8b4298dc735376c22408f9b26b3109d7f8b16cb98f956", frames.getJSONObject(4).getString("image_sha256"))
         assertEquals(listOf(1, 300, 300, 3), (0..3).map { json.getJSONArray("input_shape").getInt(it) })
         assertEquals(listOf(1, 300, 300, 6), (0..3).map { json.getJSONArray("output_shape").getInt(it) })
+        val pythonSharpness = listOf(
+            0.5265560713464371,
+            0.02486122863859786,
+            0.6112003551975399,
+            0.05129240887285327,
+            0.04772980201392636,
+        )
         for (i in 0 until frames.length()) {
             val frame = frames.getJSONObject(i)
+            assertEquals(if (i < 3) "train" else "val", frame.getString("source_split"))
             assertEquals(64, frame.getString("image_sha256").length)
-            assertTrue(frame.getDouble("sharpness").isFinite())
+            val androidSharpness = frame.getDouble("sharpness")
+            assertTrue(androidSharpness.isFinite())
+            assertEquals(pythonSharpness[i], frame.getDouble("python_sharpness"), 1e-9)
+            assertEquals(
+                abs(androidSharpness - pythonSharpness[i]),
+                frame.getDouble("sharpness_abs_delta"),
+                1e-9,
+            )
+            assertTrue(frame.getBoolean("sharpness_gate_matches_python"))
             assertTrue(frame.getInt("width") > 0)
             assertTrue(frame.getInt("height") > 0)
             val grids = frame.getJSONObject("coverage_by_tau")
@@ -304,6 +327,19 @@ class ViewpointRuntimeTest {
                 try {
                     val masks = requireNotNull(segmenter.masksFor(bitmap))
                     val sharpness = segmenter.normalisedSharpness(bitmap)
+                    val sharpnessDelta = abs(sharpness.toDouble() - fixture.pythonSharpness)
+                    val gateMatchesPython =
+                        (sharpness >= acceptance.minSharpness) ==
+                            (fixture.pythonSharpness >= acceptance.minSharpness)
+                    assertTrue(
+                        "sharpness differs from direct-raw Python path: ${fixture.asset} " +
+                            "python=${fixture.pythonSharpness} android=$sharpness delta=$sharpnessDelta",
+                        sharpnessDelta <= sharpnessParityTolerance,
+                    )
+                    assertTrue(
+                        "sharpness gate differs between Python and Android: ${fixture.asset}",
+                        gateMatchesPython,
+                    )
                     val evidence = segmenter.evidenceFor(masks, sharpness, index.toLong())
                     val accumulator = ViewAccumulator(acceptance)
                     var progress = accumulator.cancel()
@@ -322,11 +358,14 @@ class ViewpointRuntimeTest {
                     frames.put(JSONObject().apply {
                         put("asset", fixture.asset)
                         put("observation_id", fixture.observationId)
-                        put("source_split", "train")
+                        put("source_split", fixture.sourceSplit)
                         put("image_sha256", imageSha)
                         put("width", bitmap.width)
                         put("height", bitmap.height)
                         put("sharpness", sharpness.toDouble())
+                        put("python_sharpness", fixture.pythonSharpness)
+                        put("sharpness_abs_delta", sharpnessDelta)
+                        put("sharpness_gate_matches_python", gateMatchesPython)
                         put("coverage_by_tau", grids)
                         put("flags", JSONObject(mapOf(
                             "cap" to (ViewStep.CAP in progress.captured),
@@ -339,10 +378,10 @@ class ViewpointRuntimeTest {
                 }
             }
             val json = JSONObject().apply {
-                put("schema_version", 1)
+                put("schema_version", 2)
                 put("report_kind", "android_runtime_sample")
                 put("release_eligible", false)
-                put("scope", "three FungiTastic-Mini train/300p frames; no val/test NPZ or field-test binding")
+                put("scope", "three FungiTastic-Mini train/300p frames plus two val sharpness-boundary frames; no full val/test NPZ or field-test binding")
                 put("license", "CC BY-NC-SA 4.0")
                 put("model_sha256", loaded.sha)
                 put("run_id", "skip-300-seed42")
@@ -352,7 +391,8 @@ class ViewpointRuntimeTest {
                 put("channel_order", JSONArray(listOf("background", "cap", "gills", "pores", "stipe", "ring")))
                 put("android_api", android.os.Build.VERSION.SDK_INT)
                 put("created_at_epoch_ms", System.currentTimeMillis())
-                put("flags_match_train_golden", true)
+                put("flags_match_python_golden", true)
+                put("sharpness_abs_tolerance", sharpnessParityTolerance)
                 put("frames", frames)
             }
             val temp = File(report.parentFile, report.name + ".tmp")
@@ -369,17 +409,35 @@ class ViewpointRuntimeTest {
         val asset: String,
         val observationId: String,
         val sha: String,
+        val sourceSplit: String,
+        val pythonSharpness: Double,
         val captured: Set<ViewStep>,
     )
+
+    private val sharpnessParityTolerance = 0.012
 
     private val runtimeFrames = listOf(
         RuntimeFrame("viewpoint_real_frame.jpg", "2237852161",
             "ad7236af757f29fdce744767515874ce25460a4e9bad8a1025ee9d35f916a475",
+            "train",
+            0.5265560713464371,
             setOf(ViewStep.CAP, ViewStep.UNDERSIDE, ViewStep.STIPE_RING)),
         RuntimeFrame("3-3126950317_frame.jpg", "3126950317",
-            "767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e", emptySet()),
+            "767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e",
+            "train",
+            0.02486122863859786, emptySet()),
         RuntimeFrame("0-3313851318_frame.jpg", "3313851318",
-            "5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df", setOf(ViewStep.UNDERSIDE)),
+            "5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df",
+            "train",
+            0.6112003551975399, setOf(ViewStep.UNDERSIDE)),
+        RuntimeFrame("1-3329734337_frame.jpg", "3329734337",
+            "cab39916854922c73d10daf15cfe1f5aaec0c85289bfae85d35ed63c9ee8d48f",
+            "val",
+            0.05129240887285327, setOf(ViewStep.CAP, ViewStep.STIPE_RING)),
+        RuntimeFrame("0-3008838331_frame.jpg", "3008838331",
+            "940ae952a925236436e8b4298dc735376c22408f9b26b3109d7f8b16cb98f956",
+            "val",
+            0.04772980201392636, emptySet()),
     )
 
     private fun logCoverages(masks: Array<FloatArray>) {

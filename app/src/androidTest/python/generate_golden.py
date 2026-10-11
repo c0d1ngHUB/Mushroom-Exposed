@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible Python golden for the three Android runtime parity frames.
+"""Reproducible Python golden for the five Android runtime parity frames.
 
 All frames come from FungiTastic-Mini train/300p (CC BY-NC-SA 4.0) and are
 locally excluded from the MIT app repo. Run this script in the training
@@ -31,20 +31,42 @@ FRAMES = [
         "source": DATA / 'train/300p' / '0-2237852161.JPG',
         "asset": 'viewpoint_real_frame.jpg',
         "observation_id": '2237852161',
+        "source_split": "train",
     },
     {
         # Low sharpness: every view rejected by the global sharpness floor.
         "source": DATA / 'train/300p' / '3-3126950317.JPG',
         "asset": '3-3126950317_frame.jpg',
         "observation_id": '3126950317',
+        "source_split": "train",
     },
     {
         # Dominance/floor rejection: cap rejected because gills dominates and stipe_ring floor not met.
         "source": DATA / 'train/300p' / '0-3313851318.JPG',
         "asset": '0-3313851318_frame.jpg',
         "observation_id": '3313851318',
+        "source_split": "train",
+    },
+    {
+        # Val boundary case just above the unchanged 0.05 sharpness floor.
+        "source": DATA / 'train/300p' / '1-3329734337.JPG',
+        "asset": '1-3329734337_frame.jpg',
+        "observation_id": '3329734337',
+        "source_split": "val",
+    },
+    {
+        # Val boundary case just below the unchanged 0.05 sharpness floor.
+        "source": DATA / 'train/300p' / '0-3008838331.JPG',
+        "asset": '0-3008838331_frame.jpg',
+        "observation_id": '3008838331',
+        "source_split": "val",
     },
 ]
+
+
+def sharpness_for_source_image(image: Image.Image) -> float:
+    """Measure the original decoded frame through the app-equivalent 224 path."""
+    return sharpness_for_rgb224(np.asarray(image.convert('RGB')))
 
 
 def analyze(path: Path):
@@ -71,7 +93,7 @@ def analyze(path: Path):
             c[i] = np.count_nonzero(probs[:, :, i] > tau) / total
         coverages[tau] = c.reshape(1, -1)
 
-    sharp = sharpness_for_rgb224(np.asarray(resized))
+    sharp = sharpness_for_source_image(img)
     flags = frame_flags(
         coverages=coverages,
         tau_by_channel=tau_by_channel,
@@ -117,6 +139,7 @@ def main():
         print(json.dumps(result, indent=2))
         report["frames"][asset_name] = {
             "source": str(src),
+            "source_split": entry["source_split"],
             "observation_id": entry["observation_id"],
             **result,
             "sha256": hashlib.sha256(src.read_bytes()).hexdigest(),

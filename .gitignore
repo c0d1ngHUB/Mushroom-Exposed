@@ -8,6 +8,9 @@
 # Java class files
 *.class
 
+# Python test caches
+__pycache__/
+
 # Generated files
 bin/
 gen/
@@ -49,3 +52,5 @@ Thumbs.db
 app/src/androidTest/assets/viewpoint_real_frame.jpg
 app/src/androidTest/assets/3-3126950317_frame.jpg
 app/src/androidTest/assets/0-3313851318_frame.jpg
+app/src/androidTest/assets/1-3329734337_frame.jpg
+app/src/androidTest/assets/0-3008838331_frame.jpg
