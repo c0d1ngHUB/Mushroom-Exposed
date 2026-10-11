@@ -4,10 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.security.MessageDigest
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -220,6 +222,166 @@ class ViewpointRuntimeTest {
         assertFalse("stipe_ring must be rejected", progress.captured.contains(ViewStep.STIPE_RING))
     }
 
+    @Test
+    fun measuredSampleReportContainsRealFrameIdentityAndBothActivationGrids() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val report = File(context.filesDir, "viewpoint-runtime-sample.json")
+        report.delete()
+        exportRuntimeSample(report)
+        assertTrue("runtime measurements must be exported after validation", report.isFile)
+        val json = JSONObject(report.readText())
+        assertEquals("android_runtime_sample", json.getString("report_kind"))
+        assertFalse("a train-frame sample must never authorize release", json.getBoolean("release_eligible"))
+        assertFalse("sample must not masquerade as split-bound parity", json.has("input_hashes"))
+        assertEquals("f1b42948fc5b0ac5983dbc2db86a4964655d1889436e4044ab60ffe13f2b275f", json.getString("model_sha256"))
+        val frames = json.getJSONArray("frames")
+        assertEquals(3, frames.length())
+        assertEquals("ad7236af757f29fdce744767515874ce25460a4e9bad8a1025ee9d35f916a475", frames.getJSONObject(0).getString("image_sha256"))
+        assertEquals("767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e", frames.getJSONObject(1).getString("image_sha256"))
+        assertEquals("5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df", frames.getJSONObject(2).getString("image_sha256"))
+        assertEquals(listOf(1, 300, 300, 3), (0..3).map { json.getJSONArray("input_shape").getInt(it) })
+        assertEquals(listOf(1, 300, 300, 6), (0..3).map { json.getJSONArray("output_shape").getInt(it) })
+        for (i in 0 until frames.length()) {
+            val frame = frames.getJSONObject(i)
+            assertEquals(64, frame.getString("image_sha256").length)
+            assertTrue(frame.getDouble("sharpness").isFinite())
+            assertTrue(frame.getInt("width") > 0)
+            assertTrue(frame.getInt("height") > 0)
+            val grids = frame.getJSONObject("coverage_by_tau")
+            for (tau in listOf("0.3", "0.5")) {
+                val values = grids.getJSONArray(tau)
+                assertEquals(6, values.length())
+                for (channel in 0 until values.length()) {
+                    assertTrue(values.getDouble(channel) in 0.0..1.0)
+                }
+            }
+        }
+        assertTrue(frames.getJSONObject(0).getJSONObject("flags").getBoolean("cap"))
+        assertFalse(frames.getJSONObject(1).getJSONObject("flags").getBoolean("cap"))
+        assertFalse(frames.getJSONObject(2).getJSONObject("flags").getBoolean("cap"))
+        assertTrue(frames.getJSONObject(2).getJSONObject("flags").getBoolean("underside"))
+    }
+
+    @Test
+    fun failedFrameValidationInvalidatesAnOlderSuccessfulReport() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val report = File(context.filesDir, "viewpoint-runtime-sample-failure.json")
+        report.writeText("previous successful measurement")
+        val changedFrame = runtimeFrames.first().copy(sha = "0".repeat(64))
+        var rejected = false
+        try {
+            exportRuntimeSample(report, listOf(changedFrame))
+        } catch (expected: AssertionError) {
+            assertTrue(expected.message.orEmpty().contains("fixture bytes changed"))
+            rejected = true
+        }
+        assertTrue("changed raw frame bytes must be rejected", rejected)
+        assertFalse("failed validation must invalidate the previous report", report.exists())
+        assertFalse("failed validation must leave no temporary report", File(report.parentFile, report.name + ".tmp").exists())
+    }
+
+    private fun exportRuntimeSample(report: File, fixtures: List<RuntimeFrame> = runtimeFrames) {
+        // Remove the previous run before any decoding/inference. A failed run
+        // must not leave an older successful report available to consumers.
+        if (report.exists()) check(report.delete()) { "cannot invalidate stale runtime report" }
+        val testContext = InstrumentationRegistry.getInstrumentation().context
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val frames = JSONArray()
+        val loaded = loadInterpreter(appContext)
+        loaded.interpreter.use { interpreter ->
+            val acceptance = requireNotNull(ViewpointConfig.parseOrNull(
+                v2Contract, loaded.sha, loaded.inputSize, loaded.channels,
+            ))
+            val segmenter = ViewpointSegmenter(
+                interpreter, loaded.inputSize, loaded.inputSize, loaded.channels, acceptance,
+            )
+            for ((index, fixture) in fixtures.withIndex()) {
+                val bytes = testContext.assets.open(fixture.asset).use { it.readBytes() }
+                val imageSha = MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) }
+                assertEquals("fixture bytes changed: ${fixture.asset}", fixture.sha, imageSha)
+                val bitmap = requireNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size))
+                try {
+                    val masks = requireNotNull(segmenter.masksFor(bitmap))
+                    val sharpness = segmenter.normalisedSharpness(bitmap)
+                    val evidence = segmenter.evidenceFor(masks, sharpness, index.toLong())
+                    val accumulator = ViewAccumulator(acceptance)
+                    var progress = accumulator.cancel()
+                    for (item in evidence) progress = accumulator.accept(item)
+                    assertEquals("view decisions changed: ${fixture.asset}", fixture.captured, progress.captured)
+                    val grids = JSONObject()
+                    for (tau in listOf(0.3f, 0.5f)) {
+                        val values = JSONArray()
+                        for (mask in masks) {
+                            assertTrue("empty mask", mask.isNotEmpty())
+                            assertTrue("nonfinite mask", mask.all { it.isFinite() })
+                            values.put(mask.count { it > tau }.toDouble() / mask.size)
+                        }
+                        grids.put(tau.toString(), values)
+                    }
+                    frames.put(JSONObject().apply {
+                        put("asset", fixture.asset)
+                        put("observation_id", fixture.observationId)
+                        put("source_split", "train")
+                        put("image_sha256", imageSha)
+                        put("width", bitmap.width)
+                        put("height", bitmap.height)
+                        put("sharpness", sharpness.toDouble())
+                        put("coverage_by_tau", grids)
+                        put("flags", JSONObject(mapOf(
+                            "cap" to (ViewStep.CAP in progress.captured),
+                            "underside" to (ViewStep.UNDERSIDE in progress.captured),
+                            "stipe_ring" to (ViewStep.STIPE_RING in progress.captured),
+                        )))
+                    })
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+            val json = JSONObject().apply {
+                put("schema_version", 1)
+                put("report_kind", "android_runtime_sample")
+                put("release_eligible", false)
+                put("scope", "three FungiTastic-Mini train/300p frames; no val/test NPZ or field-test binding")
+                put("license", "CC BY-NC-SA 4.0")
+                put("model_sha256", loaded.sha)
+                put("run_id", "skip-300-seed42")
+                put("contract", JSONObject(v2Contract))
+                put("input_shape", JSONArray(interpreter.getInputTensor(0).shape().toList()))
+                put("output_shape", JSONArray(interpreter.getOutputTensor(0).shape().toList()))
+                put("channel_order", JSONArray(listOf("background", "cap", "gills", "pores", "stipe", "ring")))
+                put("android_api", android.os.Build.VERSION.SDK_INT)
+                put("created_at_epoch_ms", System.currentTimeMillis())
+                put("flags_match_train_golden", true)
+                put("frames", frames)
+            }
+            val temp = File(report.parentFile, report.name + ".tmp")
+            try {
+                temp.writeText(json.toString(2))
+                check(temp.renameTo(report)) { "cannot publish validated runtime sample" }
+            } finally {
+                temp.delete()
+            }
+        }
+    }
+
+    private data class RuntimeFrame(
+        val asset: String,
+        val observationId: String,
+        val sha: String,
+        val captured: Set<ViewStep>,
+    )
+
+    private val runtimeFrames = listOf(
+        RuntimeFrame("viewpoint_real_frame.jpg", "2237852161",
+            "ad7236af757f29fdce744767515874ce25460a4e9bad8a1025ee9d35f916a475",
+            setOf(ViewStep.CAP, ViewStep.UNDERSIDE, ViewStep.STIPE_RING)),
+        RuntimeFrame("3-3126950317_frame.jpg", "3126950317",
+            "767dcbed276fe0811971fe97cd2fc57fb7c42d327846a1e6b23fad92701e189e", emptySet()),
+        RuntimeFrame("0-3313851318_frame.jpg", "3313851318",
+            "5341c36e212c98754ec033bc8ec3a6c6fd0d193b919f551ff1bb3ead269314df", setOf(ViewStep.UNDERSIDE)),
+    )
+
     private fun logCoverages(masks: Array<FloatArray>) {
         val names = listOf(
             Triple("cap", ViewpointContract.CHANNEL_CAP, 0.3f),
@@ -259,13 +421,11 @@ class ViewpointRuntimeTest {
     }
 
     private fun loadInterpreter(context: Context): LoadedInterpreter {
-        val descriptor = context.assets.openFd("viewpoint.tflite")
-        val stream = FileInputStream(descriptor.fileDescriptor)
-        val mapped = stream.channel.map(
-            FileChannel.MapMode.READ_ONLY,
-            descriptor.startOffset,
-            descriptor.declaredLength,
-        )
+        val mapped = context.assets.openFd("viewpoint.tflite").use { descriptor ->
+            FileInputStream(descriptor.fileDescriptor).use { stream ->
+                stream.channel.map(FileChannel.MapMode.READ_ONLY, descriptor.startOffset, descriptor.declaredLength)
+            }
+        }
         val sha = sha256(mapped)
         mapped.rewind()
         val interpreter = Interpreter(mapped)

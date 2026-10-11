@@ -172,7 +172,7 @@ class ViewpointSegmenter(
         }
 
     /** Laplace-Varianz wie im Qualitaetspfad, normiert auf 0..1. */
-    private fun normalisedSharpness(bitmap: Bitmap): Float {
+    internal fun normalisedSharpness(bitmap: Bitmap): Float {
         val scaled = Bitmap.createScaledBitmap(bitmap, SHARPNESS_SIDE, SHARPNESS_SIDE, true)
         val pixels = IntArray(SHARPNESS_SIDE * SHARPNESS_SIDE)
         scaled.getPixels(pixels, 0, SHARPNESS_SIDE, 0, 0, SHARPNESS_SIDE, SHARPNESS_SIDE)
