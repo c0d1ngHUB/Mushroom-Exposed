@@ -43,3 +43,5 @@ captures/
 # OS/DDS Files
 .DS_Store
 Thumbs.db
+# Lokales Smoke-Test-Bild (nicht lizenziert, nicht versioniert)
+app/src/androidTest/assets/smoke_pvv.jpg
