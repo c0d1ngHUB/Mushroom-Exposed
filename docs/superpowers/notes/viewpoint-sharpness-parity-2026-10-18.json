@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "report_kind": "android_sharpness_parity",
+  "release_eligible": false,
+  "run_id": "skip-300-seed42",
+  "min_sharpness": 0.05,
+  "sharpness_abs_tolerance": 0.012,
+  "decision_band_max_python_sharpness": 0.1,
+  "input_manifest_sha256": "27ee9aad6e62c2f8f7fc11410dae1c39295d0ff3e3c1fa7b0161556563e1273f",
+  "split_bindings": {
+    "test": {
+      "frames": 2085,
+      "images_manifest_sha256": "f36ac17e17810092681497591ad6052d71394a25770534b58062e971e04d0937",
+      "model_sha256": "f1b42948fc5b0ac5983dbc2db86a4964655d1889436e4044ab60ffe13f2b275f",
+      "npz_sha256": "bfdf1e6f99f9911d2c4f735df699120931a7f95a059e637696be99ce5c43f824",
+      "splits_sha256": "a567f8ccea705a59ee9c0b0e2735ee0420b63f66b7abaebbabcf72d1e16c0d51"
+    },
+    "val": {
+      "frames": 2055,
+      "images_manifest_sha256": "8cead55691a913c878af37f67dc6597033218f18515288c05d98e6f355e5ff44",
+      "model_sha256": "f1b42948fc5b0ac5983dbc2db86a4964655d1889436e4044ab60ffe13f2b275f",
+      "npz_sha256": "d93aa48ab3b2b238c3fc4c081f361b22ff1f939c764cea3e5362a8c63f5f7bb4",
+      "splits_sha256": "a567f8ccea705a59ee9c0b0e2735ee0420b63f66b7abaebbabcf72d1e16c0d51"
+    }
+  },
+  "frames": 4140,
+  "frames_in_decision_band": 98,
+  "max_abs_delta": 0.11218979163654208,
+  "mean_abs_delta": 0.0025480657126484363,
+  "max_abs_delta_in_decision_band": 0.0036502221283276487,
+  "saturated_android_frames": 1501,
+  "sharpness_gate_mismatches": 0,
+  "decision_band_delta_mismatches": 0,
+  "stats_by_split": {
+    "val": {
+      "frames": 2055,
+      "max_abs_delta": 0.11218979163654208,
+      "mean_abs_delta": 0.0025789699954250137,
+      "sharpness_gate_mismatches": 0
+    },
+    "test": {
+      "frames": 2085,
+      "max_abs_delta": 0.0964519515304112,
+      "mean_abs_delta": 0.0025176060958110934,
+      "sharpness_gate_mismatches": 0
+    }
+  },
+  "worst_frames": [
+    {
+      "filename": "0-3382572378.JPG",
+      "observation_id": "3382572378",
+      "split": "val",
+      "python_sharpness": 0.8878102083634579,
+      "android_sharpness": 1,
+      "absolute_delta": 0.11218979163654208,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3343244388.JPG",
+      "observation_id": "3343244388",
+      "split": "val",
+      "python_sharpness": 0.7256828977332316,
+      "android_sharpness": 0.8328225016593933,
+      "absolute_delta": 0.10713960392616173,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-2425495716.JPG",
+      "observation_id": "2425495716",
+      "split": "val",
+      "python_sharpness": 0.7927185842795493,
+      "android_sharpness": 0.8925325870513916,
+      "absolute_delta": 0.09981400277184227,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3024136353.JPG",
+      "observation_id": "3024136353",
+      "split": "val",
+      "python_sharpness": 0.8180645648017077,
+      "android_sharpness": 0.9162337183952332,
+      "absolute_delta": 0.0981691535935254,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3324322356.JPG",
+      "observation_id": "3324322356",
+      "split": "test",
+      "python_sharpness": 0.6578236088486171,
+      "android_sharpness": 0.7542755603790283,
+      "absolute_delta": 0.0964519515304112,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3320502333.JPG",
+      "observation_id": "3320502333",
+      "split": "test",
+      "python_sharpness": 0.7094224223417278,
+      "android_sharpness": 0.7980587482452393,
+      "absolute_delta": 0.08863632590351145,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3324326340.JPG",
+      "observation_id": "3324326340",
+      "split": "test",
+      "python_sharpness": 0.5666982499493387,
+      "android_sharpness": 0.6464516520500183,
+      "absolute_delta": 0.0797534021006796,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3340165443.JPG",
+      "observation_id": "3340165443",
+      "split": "test",
+      "python_sharpness": 0.4788720317788158,
+      "android_sharpness": 0.5508655309677124,
+      "absolute_delta": 0.07199349918889658,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-2238091078.JPG",
+      "observation_id": "2238091078",
+      "split": "test",
+      "python_sharpness": 0.6638348314044932,
+      "android_sharpness": 0.7343816161155701,
+      "absolute_delta": 0.0705467847110769,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3340166363.JPG",
+      "observation_id": "3340166363",
+      "split": "val",
+      "python_sharpness": 0.6088328271623942,
+      "android_sharpness": 0.6786684989929199,
+      "absolute_delta": 0.06983567183052575,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3345614434.JPG",
+      "observation_id": "3345614434",
+      "split": "test",
+      "python_sharpness": 0.9061339004641425,
+      "android_sharpness": 0.9702300429344177,
+      "absolute_delta": 0.06409614247027517,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3008839328.JPG",
+      "observation_id": "3008839328",
+      "split": "val",
+      "python_sharpness": 0.48644971797289693,
+      "android_sharpness": 0.5490261316299438,
+      "absolute_delta": 0.06257641365704691,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-2351007181.JPG",
+      "observation_id": "2351007181",
+      "split": "test",
+      "python_sharpness": 0.5028337997753839,
+      "android_sharpness": 0.5648614764213562,
+      "absolute_delta": 0.06202767664597231,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "2-3327305330.JPG",
+      "observation_id": "3327305330",
+      "split": "val",
+      "python_sharpness": 0.41708167001456803,
+      "android_sharpness": 0.47585541009902954,
+      "absolute_delta": 0.05877374008446151,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "1-3345601392.JPG",
+      "observation_id": "3345601392",
+      "split": "test",
+      "python_sharpness": 0.6832901236688191,
+      "android_sharpness": 0.7404622435569763,
+      "absolute_delta": 0.05717211988815718,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3327305330.JPG",
+      "observation_id": "3327305330",
+      "split": "val",
+      "python_sharpness": 0.5628120893429935,
+      "android_sharpness": 0.6199502944946289,
+      "absolute_delta": 0.05713820515163537,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3410062306.JPG",
+      "observation_id": "3410062306",
+      "split": "test",
+      "python_sharpness": 0.426439915804037,
+      "android_sharpness": 0.48291656374931335,
+      "absolute_delta": 0.05647664794527635,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3324331350.JPG",
+      "observation_id": "3324331350",
+      "split": "test",
+      "python_sharpness": 0.3811456863980374,
+      "android_sharpness": 0.43515250086784363,
+      "absolute_delta": 0.05400681446980621,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "0-3410046304.JPG",
+      "observation_id": "3410046304",
+      "split": "val",
+      "python_sharpness": 0.3443968145798158,
+      "android_sharpness": 0.39832550287246704,
+      "absolute_delta": 0.05392868829265124,
+      "sharpness_gate_matches": true
+    },
+    {
+      "filename": "1-3355966347.JPG",
+      "observation_id": "3355966347",
+      "split": "test",
+      "python_sharpness": 0.5919718609539822,
+      "android_sharpness": 0.6438876986503601,
+      "absolute_delta": 0.051915837696377864,
+      "sharpness_gate_matches": true
+    }
+  ],
+  "gate_mismatch_frames": []
+}
