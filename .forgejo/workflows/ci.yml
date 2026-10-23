@@ -1,0 +1,33 @@
+# Forgejo host-runner checks only. No publishing or deployment.
+# .forgejo/workflows takes precedence over imported GitHub workflows.
+name: Forgejo CI
+'on':
+  push:
+    branches:
+    - main
+    - master
+    - ci/forgejo-verification-20261023
+  pull_request: {}
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: forgejo-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ANDROID_HOME: /home/m3kky/android-sdk
+      ANDROID_SDK_ROOT: /home/m3kky/android-sdk
+    steps:
+    - uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Run project verification
+      shell: bash
+      run: 'set -euo pipefail
+
+        ./gradlew --no-daemon --max-workers=4 :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleRelease'
