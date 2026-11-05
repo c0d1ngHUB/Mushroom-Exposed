@@ -21,6 +21,33 @@ class ViewAccumulatorTest {
         ),
     )
 
+    /**
+     * v2-Akzeptanz mit gemessenen per-channel Punkten. Der Accumulator muss
+     * für jede Ansicht den kleinsten zugehörigen Kanalbereich als
+     * Mindestabdeckung verwenden, ohne den bereits qualifizierten Kanal
+     * abzulehnen.
+     */
+    private val v2Acceptance = ViewAcceptance(
+        minCoverageByStep = mapOf(
+            ViewStep.CAP to 0.002f,
+            ViewStep.UNDERSIDE to 0.003f,
+            ViewStep.STIPE_RING to 0.001f,
+        ),
+        minSharpness = 0.05f,
+        dominanceFactorByStep = mapOf(
+            ViewStep.CAP to 1.0f,
+            ViewStep.UNDERSIDE to 0f,
+            ViewStep.STIPE_RING to 0f,
+        ),
+        channelPoints = mapOf(
+            ViewpointChannel.CAP to ChannelOperatingPoint(0.3f, 0.002f),
+            ViewpointChannel.GILLS to ChannelOperatingPoint(0.5f, 0.01f),
+            ViewpointChannel.PORES to ChannelOperatingPoint(0.5f, 0.003f),
+            ViewpointChannel.STIPE to ChannelOperatingPoint(0.3f, 0.001f),
+            ViewpointChannel.RING to ChannelOperatingPoint(0.3f, 0.001f),
+        ),
+    )
+
     private fun evidence(
         step: ViewStep,
         coverage: Float = 0.80f,
@@ -200,6 +227,36 @@ class ViewAccumulatorTest {
         val progress = accumulator.accept(
             evidence(ViewStep.UNDERSIDE, coverage = 0.05f, competingCoverage = 0.40f),
         )
+
+        assertTrue(progress.captured.contains(ViewStep.UNDERSIDE))
+    }
+
+    @Test
+    fun `v2 underside floor is the lower of gills and pores areas`() {
+        val ok = ViewAccumulator(v2Acceptance).accept(evidence(ViewStep.UNDERSIDE, coverage = 0.004f, sharpness = 1f))
+        val tooLow = ViewAccumulator(v2Acceptance).accept(evidence(ViewStep.UNDERSIDE, coverage = 0.002f, sharpness = 1f))
+
+        assertTrue(ok.captured.contains(ViewStep.UNDERSIDE))
+        assertFalse(tooLow.captured.contains(ViewStep.UNDERSIDE))
+    }
+
+    @Test
+    fun `v2 stipe ring floor is the lower of stipe and ring areas`() {
+        val ok = ViewAccumulator(v2Acceptance).accept(evidence(ViewStep.STIPE_RING, coverage = 0.0015f, sharpness = 1f))
+        val tooLow = ViewAccumulator(v2Acceptance).accept(evidence(ViewStep.STIPE_RING, coverage = 0.0005f, sharpness = 1f))
+
+        assertTrue(ok.captured.contains(ViewStep.STIPE_RING))
+        assertFalse(tooLow.captured.contains(ViewStep.STIPE_RING))
+    }
+
+    @Test
+    fun `v2 already qualified channel is not rejected by view floor`() {
+        // Der Poren-Kanal qualifiziert mit 0.003; der gemeinsame
+        // Unterseite-Boden ist 0.003, der Poren-Boden auch 0.003. Gleichheit
+        // zählt als Treffer.
+        val accumulator = ViewAccumulator(v2Acceptance)
+
+        val progress = accumulator.accept(evidence(ViewStep.UNDERSIDE, coverage = 0.003f, sharpness = 1f))
 
         assertTrue(progress.captured.contains(ViewStep.UNDERSIDE))
     }

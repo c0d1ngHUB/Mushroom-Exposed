@@ -24,12 +24,15 @@ class ShippedViewpointContractTest {
 
     private val contract = File("src/main/assets/viewpoint.json")
     private val model = File("src/main/assets/viewpoint.tflite")
+    private val modelSha by lazy {
+        MessageDigest.getInstance("SHA-256").digest(model.readBytes()).joinToString("") { "%02x".format(it) }
+    }
 
     @Test
     fun `the shipped contract parses into an acceptance the app can run`() {
         assertTrue("viewpoint.json must ship with the segmenter", contract.isFile)
 
-        val acceptance = ViewpointConfig.parseOrNull(contract.readText())
+        val acceptance = ViewpointConfig.parseOrNull(contract.readText(), modelSha, 300, 6)
 
         assertNotNull("the shipped contract must parse; a null means fail-closed", acceptance)
         // Der Hut ist der Grund für die Dominanzregel: er darf nicht unter 1,0
@@ -44,7 +47,7 @@ class ShippedViewpointContractTest {
 
     @Test
     fun `the shipped floors are the measured ones, not round placeholders`() {
-        val acceptance = ViewpointConfig.parseOrNull(contract.readText())!!
+        val acceptance = ViewpointConfig.parseOrNull(contract.readText(), modelSha, 300, 6)!!
 
         // Werte aus calibrate_views auf dem val-Bericht. Bewusst als exakte
         // Zahlen gepinnt: eine stille Änderung an der Kalibrierung würde sonst
