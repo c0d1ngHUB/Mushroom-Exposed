@@ -11,8 +11,12 @@ import numpy as np
 from PIL import Image
 import torch
 
-ROOT = Path('/home/m3kky/projects/Mushroom-Exposed-training/.worktrees/feat-viewpoint')
-DATA = Path('/home/m3kky/projects/Mushroom-Exposed-training/data/fungitastic/FungiTastic-Mini')
+# Trainings-Checkout: seit dem Merge von feat/viewpoint-prototyp liegt der
+# Viewpoint-Code auf main; per MUSHROOM_TRAIN_ROOT auf einen Worktree umlenkbar.
+import os
+ROOT = Path(os.environ.get('MUSHROOM_TRAIN_ROOT',
+                           Path.home() / 'projects/Mushroom-Exposed-training')).resolve()
+DATA = ROOT / 'data/fungitastic/FungiTastic-Mini'
 SPLIT_MANIFEST = ROOT / 'out/viewpoint/splits/seed-42.json'
 sys.path.insert(0, str(ROOT))
 

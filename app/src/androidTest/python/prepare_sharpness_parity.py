@@ -17,8 +17,11 @@ from pathlib import Path
 import numpy as np
 
 
-TRAIN_ROOT = Path("/home/m3kky/projects/Mushroom-Exposed-training/.worktrees/feat-viewpoint")
-TRAIN_DATA = Path("/home/m3kky/projects/Mushroom-Exposed-training/data/fungitastic")
+# Trainings-Checkout: seit dem Merge von feat/viewpoint-prototyp liegt der
+# Viewpoint-Code auf main; per MUSHROOM_TRAIN_ROOT auf einen Worktree umlenkbar.
+TRAIN_ROOT = Path(os.environ.get("MUSHROOM_TRAIN_ROOT",
+                                 Path.home() / "projects/Mushroom-Exposed-training")).resolve()
+TRAIN_DATA = TRAIN_ROOT / "data/fungitastic"
 SPLITS_PATH = TRAIN_ROOT / "out/viewpoint/splits/seed-42.json"
 APP_ROOT = Path(__file__).resolve().parents[4]
 ASSET_ROOT = APP_ROOT / "app/src/androidTest/assets/sharpness_parity"
