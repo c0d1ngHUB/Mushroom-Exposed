@@ -989,7 +989,7 @@ class MainActivity : AppCompatActivity() {
      * nicht lahmlegen, deshalb wird hier nichts geworfen.
      */
     private fun loadViewpointModel() {
-        segmenter = try {
+        val segmenterAndHash = try {
             val descriptor = assets.openFd(VIEWPOINT_ASSET)
             val stream = FileInputStream(descriptor.fileDescriptor)
             val mapped = stream.channel.map(
@@ -997,15 +997,19 @@ class MainActivity : AppCompatActivity() {
                 descriptor.startOffset,
                 descriptor.declaredLength,
             )
+            val modelSha256 = sha256(mapped)
+            mapped.rewind()
             val viewpoint = Interpreter(mapped)
             val channels = viewpoint.getOutputTensor(0).shape().lastOrNull() ?: 0
             val vShape = viewpoint.getInputTensor(0).shape()
-            // Der Konstruktor prueft den Kanalvertrag selbst und schliesst
-            // geschlossen, wenn das Asset nicht passt.
-            ViewpointSegmenter(viewpoint, vShape[2], vShape[1], channels)
+            Triple(ViewpointSegmenter(viewpoint, vShape[2], vShape[1], channels), modelSha256, Pair(vShape[1], channels))
         } catch (e: Exception) {
-            ViewpointSegmenter(null, 0, 0, 0)
+            Triple(ViewpointSegmenter(null, 0, 0, 0), "", Pair(0, 0))
         }
+
+        segmenter = segmenterAndHash.first
+        val modelSha256 = segmenterAndHash.second
+        val (inputSize, channels) = segmenterAndHash.third
 
         // Die kalibrierten Grenzen kommen aus dem Vertrag. Ohne sie gaebe es
         // keine Akzeptanz und damit keinen Sammelvorgang — auch dann nicht,
@@ -1013,11 +1017,27 @@ class MainActivity : AppCompatActivity() {
         viewAcceptance = try {
             ViewpointConfig.parseOrNull(
                 assets.open(ViewpointConfig.ASSET).bufferedReader().use { it.readText() },
+                modelSha256,
+                inputSize,
+                channels,
             )
         } catch (e: Exception) {
             null
         }
         viewAccumulator = viewAcceptance?.let(::ViewAccumulator)
+    }
+
+    private fun sha256(buffer: java.nio.ByteBuffer): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val bytes = ByteArray(8192)
+        val dup = buffer.duplicate()
+        dup.rewind()
+        while (dup.hasRemaining()) {
+            val limit = minOf(bytes.size, dup.remaining())
+            dup.get(bytes, 0, limit)
+            digest.update(bytes, 0, limit)
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun loadModelFile(): MappedByteBuffer {
